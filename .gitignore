@@ -43,3 +43,10 @@ next-env.d.ts
 
 # claude
 .claude/
+
+# datos HIS (pacientes, no subir)
+data/
+perfil_his.md
+
+# reporte de carga (solo conteos)
+scripts/load/output/
