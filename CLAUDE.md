@@ -17,7 +17,7 @@ MVP de hackathon (entrega: jueves 1 p.m.). Dashboard de KPIs, alertas, agente co
 - Next.js 16 (App Router) + Supabase (Postgres y Auth) + Vercel. Monolito MVC: vistas en `src/app`, controladores en `src/app/api/*/route.ts`, lógica en `src/lib`. Alias `@/*` → `src/*`. **Next.js 16 tiene cambios incompatibles: lee `node_modules/next/dist/docs/` antes de escribir código** (por ejemplo, `params` de un route handler es una `Promise`).
 - Agente: Gemini (principal), Groq (respaldo) y plan B con preguntas predefinidas. Costo 0 USD.
 - Fecha de referencia ("hoy"): 2026-09-21, guardada en `core.app_settings` y expuesta con `agent.reference_date()`. Nunca `CURRENT_DATE`.
-- Autenticación con Supabase Auth; el rol vive en `core.user_profiles`. Un usuario, un rol: `director`, `service_head`, `administrative`, `pharmacy`, `admin`.
+- Autenticación con Supabase Auth; el rol vive en `core.user_profiles`. Un usuario, un rol: `director`, `service_head`, `medic`, `admin`.
 - La matriz de permisos vive solo en `src/lib/auth/permissions.ts`, no en la base.
 - supabase-js: Auth y consultas fijas del dashboard sobre el esquema `agent`. Todo lo de `core` y `audit` va por la conexión pg con el rol que corresponda (`agent_ro`, `importer`, `app_backend`).
 - Importación en 3 pasos: crear lote, enviar filas en trozos menores de 4 MB, aplicar. Todo o nada.

@@ -65,7 +65,7 @@ Una ficha por cuenta, con el rol y el estado. Relación 1:1 con `auth.users`.
 |---|---|---|---|---|
 | user_id | uuid | PK, FK → auth.users.id | No | Mismo id de la cuenta en Supabase Auth. |
 | full_name | text | — | No | Nombre de la persona. |
-| role | text | — | No | `director`, `service_head`, `administrative`, `pharmacy` o `admin` (CHECK). |
+| role | text | — | No | `director`, `service_head`, `medic` o `admin` (CHECK). |
 | is_active | boolean | — | No | Por defecto `true`. El servidor lo verifica en cada request (AUT-05). |
 | must_change_password | boolean | — | No | Por defecto `true`. Obliga a cambiar la contraseña en el primer ingreso (AUT-10). |
 | created_by | uuid | FK → core.user_profiles.user_id | Sí | Administrador que creó la cuenta. Nulo para el admin inicial del script. |
@@ -433,7 +433,7 @@ erDiagram
   core_user_profiles {
     uuid user_id PK "tambien FK a auth.users"
     text full_name
-    text role "director / service_head / administrative / pharmacy / admin"
+    text role "director / service_head / medic / admin"
     boolean is_active
     boolean must_change_password
     uuid created_by FK "a user_profiles, nullable"
