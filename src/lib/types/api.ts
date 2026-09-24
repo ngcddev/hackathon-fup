@@ -123,11 +123,14 @@ export interface CriticalDrug {
   days_of_inventory: number;
   stock_date: IsoDate;
   is_simulated: boolean;
+  estimated_stockout_date?: IsoDate; // D2: reference_date + días de inventario (hacia abajo)
+  suggested_order_quantity?: number; // D2: unidades para cubrir `target_days` de consumo (mínimo 0)
 }
 
 export interface CriticalDrugsCard {
   scope: KpiScope; // 'hospital'
   threshold_days: number; // 5
+  target_days?: number; // D2: días de cobertura usados en suggested_order_quantity
   count: number;
   includes_simulated_data: boolean;
   items: CriticalDrug[]; // solo item_type = medicamento, de menor a mayor días
