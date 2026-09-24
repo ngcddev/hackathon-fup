@@ -323,7 +323,7 @@ Configuración de una sola fila. La escribe el script de carga con REFERENCE_DAT
 
 ## 9. Esquema `core`: vistas materializadas
 
-Se refrescan al final de `core.apply_batch` y de la carga histórica con `REFRESH MATERIALIZED VIEW CONCURRENTLY`, que exige un índice único en cada una.
+Se refrescan al final de `core.apply_batch` y de la carga histórica con `REFRESH MATERIALIZED VIEW CONCURRENTLY`, que exige un índice único en cada una. `core.refresh_materialized_views()` las refresca en orden de dependencia y termina con `ANALYZE` de las dos de agregados diarios.
 
 ### core.mv_admission_stay
 Egreso estimado y estancia de los ingresos con cama asignada (`hospitalized_at` no nulo: 17.774 de 17.781). Índice único: `admission_id`.
@@ -360,6 +360,32 @@ Un registro por medicamento o insumo dispensado. Índice único: `item_code`.
 | item_type | text | `medicamento` o `dispositivo`. Dispositivo si más de la mitad de sus dispensaciones viene de áreas cuyo nombre contiene "DISPOS" (S-15). |
 | dispensation_rows | int | Número de dispensaciones del ítem en el histórico. |
 
+### core.mv_drug_consumption_daily
+Consumo por día, ítem, área y especialidad (134 mil filas frente a 579 mil de `drug_dispensations`). Existe porque agregar `dispensed_at::date` en cada consulta obligaba a un escaneo completo. `item_type` se guarda como `''` cuando el ítem no está en el catálogo, para poder usarlo en el índice único; `agent.v_drug_consumption_daily` lo devuelve como NULL. Índice único: (`day`, `item_code`, `item_name`, `item_type`, `area_name`, `specialty`); índice por `day`.
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| day | date | Día de la dispensación. |
+| item_code | text | Código del ítem. |
+| item_name | text | Nombre del ítem. |
+| item_type | text | `medicamento`, `dispositivo` o `''`. |
+| area_name | text | Área. |
+| specialty | text | Especialidad. |
+| total_quantity | int | Cantidad dispensada ese día. |
+
+### core.mv_service_demand_daily
+Servicios prestados por día, área, especialidad y servicio (92 mil filas frente a 582 mil de `service_lines`). Índice único: (`day`, `area_name`, `specialty`, `service_code`, `service_name`); índice por `day`.
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| day | date | Día en que se prestó el servicio. |
+| area_name | text | Área. |
+| specialty | text | Especialidad. |
+| service_code | text | Código del servicio. |
+| service_name | text | Nombre del servicio. |
+| lines_count | int | Líneas de servicio. |
+| total_quantity | int | Cantidad total. |
+
 ## 10. Esquema `agent`: vistas anonimizadas
 
 Reglas comunes:
@@ -375,9 +401,9 @@ Reglas comunes:
 | agent.v_admissions | admission_id, patient_key, admission_class, admission_route, admitted_at, hospitalized_at, estimated_discharge_at, service, subservice, triage_level, age_group, sex, regime, zone | `admissions` + `mv_admission_stay` + `triages` + `patients`. `age_group` en rangos calculados desde `birth_date` a `agent.reference_date()`. Pregunta 4 de la demo (`admission_class = 'Hospitalario'`). |
 | agent.v_bed_occupancy | day, service, subservice, occupied_beds, capacity, occupancy_pct, is_capacity_simulated | `mv_bed_occupancy_daily` + `bed_inventory.data_origin`. Pregunta 1 de la demo (`service = 'UNIDAD DE CUIDADO INTENSIVO'`) y alerta de ocupación por subservicio (ALE-02). |
 | agent.v_emergency_wait_times | admission_id, admitted_at, triaged_at, attended_at, wait_minutes, triage_level, triage_classification, shift, weekday, hour | `admissions` (solo `admission_route = 'Urgencias'`) + `triages` + `first_attentions`. `wait_minutes` entre 0 y 1.440 (S-06); si no hay triage, se mide desde `admitted_at`. `shift` = día o noche. Pregunta 3 de la demo. |
-| agent.v_drug_inventory | item_code, item_name, item_type, current_stock, avg_daily_consumption, days_of_inventory, stock_date, is_simulated | Foto más reciente de `drug_stock` + `mv_item_catalog` + consumo de los 30 días hasta `agent.reference_date()` de `drug_dispensations` ÷ 30 (S-10). `days_of_inventory = current_stock ÷ avg_daily_consumption`. Pregunta 2 de la demo. |
-| agent.v_drug_consumption_daily | day, item_code, item_name, item_type, area_name, specialty, total_quantity | `drug_dispensations` + `mv_item_catalog`, agregado por día, ítem, área y especialidad. |
-| agent.v_service_demand_daily | day, area_name, specialty, service_code, service_name, lines_count, total_quantity | `service_lines` agregado por día, área, especialidad y servicio. |
+| agent.v_drug_inventory | item_code, item_name, item_type, current_stock, avg_daily_consumption, days_of_inventory, stock_date, is_simulated | Foto más reciente de `drug_stock` + `mv_item_catalog` + consumo de los 30 días hasta `agent.reference_date()` de `mv_drug_consumption_daily` ÷ 30 (S-10). `days_of_inventory = current_stock ÷ avg_daily_consumption`. Pregunta 2 de la demo. |
+| agent.v_drug_consumption_daily | day, item_code, item_name, item_type, area_name, specialty, total_quantity | `mv_drug_consumption_daily` (`drug_dispensations` + `mv_item_catalog`, agregado por día, ítem, área y especialidad). |
+| agent.v_service_demand_daily | day, area_name, specialty, service_code, service_name, lines_count, total_quantity | `mv_service_demand_daily` (`service_lines` agregado por día, área, especialidad y servicio). |
 | agent.v_surgeries | schedule_number, scheduled_month, is_performed, data_origin | Una fila por programación, solo las que tienen ingreso en `admissions` (S-11). `is_performed` si alguno de sus servicios aparece en `service_lines` para ese ingreso. `scheduled_month` sale de `scheduled_date` o, si es nula, de `admissions.admitted_at`. |
 | agent.v_diagnosis_monthly | month, service, diagnosis_code, diagnosis_name, admissions_count | `admissions` agregado por mes, servicio y diagnóstico, con `HAVING count(*) >= 5`. |
 
@@ -417,6 +443,8 @@ Reglas comunes:
 | core.drug_stock | UNIQUE (item_code, stock_date) | Foto más reciente por medicamento. |
 | core.surgery_schedules | (admission_id, service_code), (schedule_number) | Cruce con servicios prestados y agrupación por programación. |
 | core.mv_item_catalog | UNIQUE (item_code) | Requisito de `REFRESH ... CONCURRENTLY` y cruce con inventario. |
+| core.mv_drug_consumption_daily | UNIQUE (day, item_code, item_name, item_type, area_name, specialty), (day) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días. |
+| core.mv_service_demand_daily | UNIQUE (day, area_name, specialty, service_code, service_name), (day) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días. |
 | Todas las tablas con `batch_id` | (batch_id) | Revertir un lote. |
 | audit.query_log | (user_id, asked_at) | Consulta del log por usuario. |
 
