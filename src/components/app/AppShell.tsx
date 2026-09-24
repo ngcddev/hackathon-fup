@@ -159,15 +159,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Icon name="menu" size={22} strokeWidth={2} />
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="m-0 text-[22px] font-extrabold leading-tight sm:text-[28px] tracking-tight">{current.label}</h1>
-            <div className="mt-0.5 text-sm font-medium text-muted">{data ? `Datos al ${fmtDate(data.reference_date)}` : 'Cargando datos…'}</div>
+            <h1 className="m-0 truncate text-[22px] font-extrabold leading-tight tracking-tight sm:text-[28px]">{current.label}</h1>
+            <div className="mt-0.5 truncate text-sm font-medium text-muted">{data ? `Datos al ${fmtDate(data.reference_date)}` : 'Cargando datos…'}</div>
           </div>
-          <label className="relative -mr-1.5 flex items-center gap-1 text-[13px] font-semibold text-muted">
+          <label className="relative order-last flex h-11 basis-full items-center gap-2 rounded-lg border border-line bg-canvas pl-3 text-[13px] font-semibold text-muted sm:order-none sm:-mr-1.5 sm:h-auto sm:basis-auto sm:gap-1 sm:border-0 sm:bg-transparent sm:pl-0">
             <span>Servicio:</span>
             <select
               value={service}
               onChange={(e) => setService(e.target.value)}
-              className="h-[34px] max-w-[220px] cursor-pointer appearance-none rounded-md border-0 bg-transparent pl-1.5 pr-[26px] text-sm font-bold text-navy hover:bg-slate-100"
+              className="h-full min-w-0 flex-1 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent pl-0 pr-9 text-[15px] font-bold text-navy outline-none sm:h-[34px] sm:max-w-[220px] sm:flex-none sm:pl-1.5 sm:pr-[26px] sm:text-sm sm:hover:bg-slate-100"
             >
               <option value={ALL_HOSPITAL}>{ALL_HOSPITAL}</option>
               {services.map((s) => (
@@ -176,16 +176,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </option>
               ))}
             </select>
-            <Icon name="chevron" size={14} strokeWidth={2.6} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-navy" />
+            <Icon name="chevron" size={14} strokeWidth={2.6} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-navy sm:right-2" />
           </label>
           {can('agent:query') && (
             <button
               type="button"
               onClick={askAi}
               aria-label="Preguntar a la IA"
-              className="flex h-11 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-leaf px-3 text-[15px] sm:px-5 font-bold text-white hover:bg-forest"
+              className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-leaf px-3 text-[15px] font-bold text-white hover:bg-forest sm:gap-2.5 sm:px-5"
             >
               <Icon name="agente" />
+              <span className="sm:hidden">IA</span>
               <span className="hidden sm:inline">Preguntar a la IA</span>
             </button>
           )}
