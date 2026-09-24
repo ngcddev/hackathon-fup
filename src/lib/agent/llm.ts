@@ -1,20 +1,24 @@
 // Cliente del LLM (AGE-02, RNF-10, RNF-03). Sin imports del servidor: se prueba con vitest.
 //
 // Cadena: Gemini (principal) → un reintento solo ante 429 o 5xx → Groq (respaldo) → plan B.
-// Presupuesto total de 8 s con AbortController: Gemini hasta 3,5 s por llamada y Groq hasta 3 s;
-// si el presupuesto se agota, se devuelve 'unavailable' y el flujo sigue con el plan B.
+// Presupuesto total de 8 s con AbortController: Gemini hasta 3,5 s por llamada y Groq hasta 4 s.
+// Gemini nunca consume el tiempo reservado para Groq, y si falla por saturación o timeout queda en
+// pausa 60 s: mientras tanto las preguntas van directo a Groq sin perder segundos esperando a Gemini.
+// Si el presupuesto se agota, se devuelve 'unavailable' y el flujo sigue con el plan B.
 // Solo se envían esquema, reglas y la pregunta: nunca filas, resultados ni datos de usuarios.
 // Las llaves solo existen en el servidor (GEMINI_API_KEY, GROQ_API_KEY, sin prefijo NEXT_PUBLIC_).
 // El SQL devuelto NO se ejecuta aquí: run.ts lo pasa por validateSql y runAgentQuery.
 
 import type { LlmProvider } from '../types/api';
+import { canonicalizeLiterals } from './literals';
 import { buildSystemPrompt, buildUserMessage } from './prompt';
-import { normalizeText } from './text';
+import { normalizeQuestion, unaccentLikeLiterals } from './text';
 
 export type LlmDecision =
-  | { type: 'sql'; sql: string; answerTemplate: string }
+  | { type: 'sql'; sql: string; answerTemplate: string; followUps: string[] }
   | { type: 'out_of_scope'; reason: string }
-  | { type: 'sensitive' };
+  | { type: 'sensitive' }
+  | { type: 'help' };
 
 export type LlmOutcome =
   | { status: 'ok'; decision: LlmDecision; provider: LlmProvider }
@@ -22,7 +26,8 @@ export type LlmOutcome =
 
 export const LLM_BUDGET_MS = 8_000;
 const GEMINI_TIMEOUT_MS = 3_500;
-const GROQ_TIMEOUT_MS = 3_000;
+const GROQ_TIMEOUT_MS = 4_000;
+const GEMINI_COOLDOWN_MS = 60_000;
 const MIN_CALL_MS = 600; // con menos tiempo que esto no vale la pena empezar otra llamada
 const RETRY_PAUSE_MS = 300;
 const MAX_SQL_CHARS = 4_000;
@@ -51,10 +56,14 @@ export function parseDecision(text: string): LlmDecision | null {
   switch (obj.type) {
     case 'sql': {
       if (typeof obj.sql !== 'string') return null;
-      const sql = obj.sql.trim();
+      const sql = canonicalizeLiterals(unaccentLikeLiterals(obj.sql.trim()));
       if (sql === '' || sql.length > MAX_SQL_CHARS) return null;
       const template = typeof obj.answer_template === 'string' ? obj.answer_template : '';
-      return { type: 'sql', sql, answerTemplate: template };
+      // Se limpian en context.ts (followUpQuestions) antes de mostrarse.
+      const followUps = Array.isArray(obj.follow_ups)
+        ? obj.follow_ups.filter((q): q is string => typeof q === 'string').slice(0, 3)
+        : [];
+      return { type: 'sql', sql, answerTemplate: template, followUps };
     }
     case 'out_of_scope': {
       const reason = typeof obj.reason === 'string' ? obj.reason : '';
@@ -63,6 +72,8 @@ export function parseDecision(text: string): LlmDecision | null {
     }
     case 'sensitive':
       return { type: 'sensitive' };
+    case 'help':
+      return { type: 'help' };
     default:
       return null;
   }
@@ -77,6 +88,17 @@ class ProviderError extends Error {
   ) {
     super(message);
   }
+}
+
+// Saturación o caída del proveedor (429, 5xx, timeout): vale la pena pausarlo un rato.
+const isOutage = (error: unknown) =>
+  error instanceof ProviderError && (error.retryable || error.message === 'timeout');
+
+// Instante hasta el que Gemini queda en pausa tras una caída (0 = disponible).
+let geminiPausedUntil = 0;
+
+export function resetProviderPause(): void {
+  geminiPausedUntil = 0;
 }
 
 async function postJson(
@@ -192,7 +214,8 @@ const CACHE_TTL_MS = 10 * 60_000;
 const CACHE_MAX_ENTRIES = 200;
 const cache = new Map<string, CacheEntry>();
 
-const cacheKey = (question: string) => normalizeText(question);
+// Misma normalización que la pregunta que recibe el LLM (buildUserMessage).
+const cacheKey = (question: string) => normalizeQuestion(question);
 
 function cachedOutcome(question: string): LlmOutcome | null {
   const key = cacheKey(question);
@@ -231,14 +254,19 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
   const remaining = () => deadline - Date.now();
   const failures: string[] = [];
 
+  let outage = false;
+
+  // reserveMs: tiempo del presupuesto que este proveedor no puede usar (se guarda para el siguiente).
   async function attempt(
     provider: LlmProvider,
     call: (question: string, timeoutMs: number) => Promise<string>,
     capMs: number,
     canRetry: boolean,
+    reserveMs = 0,
   ): Promise<LlmOutcome | null> {
+    outage = false;
     for (let tries = 0; tries < (canRetry ? 2 : 1); tries++) {
-      const timeoutMs = Math.min(capMs, remaining());
+      const timeoutMs = Math.min(capMs, remaining() - reserveMs);
       if (timeoutMs < MIN_CALL_MS) {
         failures.push(`${provider}: sin tiempo en el presupuesto`);
         return null;
@@ -251,6 +279,7 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
         return null;
       } catch (error) {
         const retryable = error instanceof ProviderError && error.retryable;
+        outage = isOutage(error);
         failures.push(`${provider}: ${error instanceof Error ? error.message : 'error'}`);
         if (!retryable || tries === 1) return null;
         await sleep(Math.min(RETRY_PAUSE_MS, Math.max(0, remaining() - MIN_CALL_MS)));
@@ -259,8 +288,16 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
     return null;
   }
 
-  const fromGemini = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, true);
-  if (fromGemini) return fromGemini;
+  if (Date.now() < geminiPausedUntil) {
+    failures.push('gemini: en pausa por una caída reciente');
+  } else {
+    const fromGemini = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, true, GROQ_TIMEOUT_MS);
+    if (fromGemini) return fromGemini;
+    if (outage) {
+      geminiPausedUntil = Date.now() + GEMINI_COOLDOWN_MS;
+      console.warn('[agent] Gemini no responde; se pausa 60 s y las preguntas van directo a Groq.');
+    }
+  }
   const fromGroq = await attempt('groq', callGroq, GROQ_TIMEOUT_MS, false);
   if (fromGroq) return fromGroq;
   return { status: 'unavailable', reason: failures.join('; ') };

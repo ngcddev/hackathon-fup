@@ -6,7 +6,7 @@
 // Si algún marcador no existe en el resultado, se responde con un texto genérico.
 // Sin imports del servidor: se prueba con vitest.
 
-import { formatNumber } from './text';
+import { formatNumber, normalizeText } from './text';
 
 const MARKER = /\{((?:last\.)?[a-zA-Z_][a-zA-Z0-9_]*)\}/g;
 const MAX_ANSWER_LENGTH = 500;
@@ -28,12 +28,55 @@ function formatValue(value: unknown): string | null {
   return /^-?\d+(\.\d+)?$/.test(text) && text.length < 16 ? formatNumber(Number(text), 1) : text;
 }
 
+// ------------------------------------------------------------------ Superlativos verificados
+// El LLM no ve los datos y a veces afirma "el día con más ingresos fue {dia}" cuando el SQL ordena por
+// fecha: la primera fila no es la mayor. Cada frase con un superlativo se comprueba contra las filas:
+// el valor de {columna} (primera fila) debe ser el máximo (o el mínimo) de esa columna; si no, la frase
+// se quita. Las filas TOTAL de GROUPING SETS no cuentan.
+
+const MIN_WORDS = /\b(menos|menor|minim[oa]|mas baj[oa]|mas critic[oa]|mas cerca|mas pronto)\b/;
+const MAX_WORDS = /\b(mas|mayor|maxim[oa]|pico|top|lider|principal)\b/;
+const FIRST_ROW_MARKER = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+  return null;
+}
+
+function superlativeHolds(sentence: string, columns: Set<string>, rows: Record<string, unknown>[]): boolean {
+  const text = normalizeText(sentence);
+  const wantsMin = MIN_WORDS.test(text);
+  if (!wantsMin && !MAX_WORDS.test(text)) return true;
+  const body = rows.filter((r) => !Object.values(r).some((v) => typeof v === 'string' && /^total\b/i.test(v)));
+  if (body.length < 2) return true;
+  for (const [, column] of sentence.matchAll(FIRST_ROW_MARKER)) {
+    if (!columns.has(column)) continue;
+    const first = asNumber(rows[0][column]);
+    const values = body.map((r) => asNumber(r[column]));
+    if (first === null || values.some((v) => v === null)) continue;
+    const extreme = wantsMin ? Math.min(...(values as number[])) : Math.max(...(values as number[]));
+    if (first !== extreme) return false;
+  }
+  return true;
+}
+
+// Frases separadas por punto o punto y coma; se conservan solo las que se sostienen con los datos.
+function dropFalseSuperlatives(template: string, columns: Set<string>, rows: Record<string, unknown>[]): string {
+  const parts = template.split(/(?<=[.;])\s+/);
+  const kept = parts.filter((p) => superlativeHolds(p, columns, rows));
+  if (kept.length === parts.length) return template;
+  return kept.join(' ').replace(/;\s*$/, '.');
+}
+
 export function fillAnswerTemplate(
   template: string,
   columns: string[],
   rows: Record<string, unknown>[],
 ): string {
   if (rows.length === 0 || template.trim() === '') return genericAnswer(rows.length);
+  template = dropFalseSuperlatives(template, new Set(columns), rows);
+  if (template.trim() === '') return genericAnswer(rows.length);
   const known = new Set(columns);
   let missing = false;
   const filled = template.replace(MARKER, (_match, name: string) => {

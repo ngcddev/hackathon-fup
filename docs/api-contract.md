@@ -137,7 +137,10 @@ Permiso: `agent:query`. Pregunta en español; responde con el resultado y el SQL
   "views_used": ["v_drug_inventory"],
   "includes_simulated_data": true,
   "reference_date": "2026-09-21",
-  "duration_ms": 412
+  "duration_ms": 412,
+  "highlights": ["Rango de dias restantes: de 1,8 (Medicamento simulado a) a 4 (Medicamento simulado c); promedio: 2,9."],
+  "notes": [],
+  "follow_up_questions": ["¿Qué medicamentos tienen entre 5 y 10 días de inventario?"]
 }
 ```
 
@@ -149,6 +152,7 @@ Reglas:
 - **`patient_key` nunca aparece** en `columns` ni en `rows`: el backend filtra la columna aunque el SQL la seleccione.
 - Sin datos para la pregunta (AGE-07): 200 con `row_count: 0` y `answer` que lo explica.
 - `includes_simulated_data` es `true` si alguna vista usada tiene datos simulados (por ejemplo `v_drug_inventory`).
+- Contexto calculado por el servidor a partir de las filas (el LLM no las ve): `highlights` (hasta 3 frases con total, participación, rango, pico o tendencia), `notes` (advertencias de las vistas usadas: datos simulados, umbral de 5 ingresos en diagnósticos, cómo se mide la espera) y `follow_up_questions` (hasta 3 preguntas relacionadas). Pueden venir vacíos; en las respuestas de ayuda ("¿qué puedo consultar?") vienen vacíos y `sql` es `""`.
 - El LLM solo recibe esquema, pregunta y agregados; nunca filas de pacientes (RNF-03).
 
 **Errores:**

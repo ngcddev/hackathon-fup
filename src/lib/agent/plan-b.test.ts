@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchPlanB, NO_DATA_ANSWER, PLAN_B } from './plan-b';
+import { extractDiagnosisTerm, matchPlanB, NO_DATA_ANSWER, PLAN_B } from './plan-b';
 
 const idOf = (q: string) => matchPlanB(q)?.entry.id ?? null;
 
@@ -92,5 +92,51 @@ describe('respuestas (AGE-06): empiezan con el dato principal', () => {
 
   it('sin filas, todas responden con el texto de AGE-07', () => {
     for (const entry of PLAN_B) expect(entry.buildAnswer([])).toBe(NO_DATA_ANSWER);
+  });
+});
+
+describe('búsqueda de diagnóstico sin LLM', () => {
+  it.each([
+    ['cuantos pacientes ingresaron con apendiciti?', 'APENDICITI'],
+    ['¿Cuántos pacientes son atendidos por apendicitis?', 'APENDICITI'],
+    ['ingresos con diagnóstico de neumonías este mes', 'NEUMONIA'],
+    ['casos de dengue', 'DENGUE'],
+    ['pacientes hospitalizados con una bronquiolitis', 'BRONQUIOLITI'],
+  ])('%s → %s', (question, term) => {
+    expect(extractDiagnosisTerm(question)).toBe(term);
+    const match = matchPlanB(question);
+    expect(match?.entry.id).toBe('diagnosis_search');
+    expect(match?.entry.sql).toContain(`diagnosis_name ILIKE '%${term}%'`);
+  });
+
+  it('filtra el mes solo si la pregunta lo pide', () => {
+    expect(matchPlanB('casos de dengue este mes')?.entry.sql).toContain('date_trunc');
+    expect(matchPlanB('casos de dengue')?.entry.sql).not.toContain('date_trunc');
+  });
+
+  it.each([
+    'pacientes ingresados por urgencias',
+    'ingresos de pediatria',
+    'pacientes con triage 1',
+    'ingresos de mujeres',
+    'pacientes de zona rural',
+    'ingresos por grupo de edad este mes',
+    'pacientes por nivel de triage',
+  ])('no confunde otros filtros con un diagnóstico: %s', (question) => {
+    expect(extractDiagnosisTerm(question)).toBeNull();
+  });
+
+  it('las preguntas fijas tienen prioridad', () => {
+    expect(matchPlanB('diagnósticos más frecuentes este mes')?.entry.id).toBe('top_diagnoses_month');
+  });
+
+  it('responde con el total y el diagnóstico principal', () => {
+    const entry = matchPlanB('casos de apendicitis')!.entry;
+    const answer = entry.buildAnswer([
+      { diagnostico: 'APENDICITIS AGUDA, NO ESPECIFICADA', ingresos: 40 },
+      { diagnostico: 'OTRAS APENDICITIS', ingresos: 7 },
+    ]);
+    expect(answer.startsWith('Hubo 47 ingresos con diagnósticos que contienen "apendiciti"')).toBe(true);
+    expect(entry.buildAnswer([])).toBe(NO_DATA_ANSWER);
   });
 });

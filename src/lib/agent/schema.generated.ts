@@ -32,7 +32,7 @@ export const AGENT_SCHEMA_VIEWS: SchemaView[] = [
       {"name":"age_group","type":"text","comment":null,"values":["0-4","18-29","30-44","45-59","5-17","60-74","75+"]},
       {"name":"sex","type":"text","comment":null,"values":["Femenino","Masculino"]},
       {"name":"regime","type":"text","comment":null,"values":["Contributivo","Otro","Particular","Subsidiado","Vinculado"]},
-      {"name":"zone","type":"text","comment":null},
+      {"name":"zone","type":"text","comment":null,"values":["Rural","Urbana"]},
     ],
   },
   {

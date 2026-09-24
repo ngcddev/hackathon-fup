@@ -538,6 +538,83 @@ LIMIT 24`,
   },
 ];
 
+// ------------------------------------------------------------------ Búsqueda de diagnóstico
+// "¿cuántos pacientes ingresaron con apendicitis?": sin LLM se extrae la palabra de la enfermedad
+// y se busca con ILIKE en v_diagnosis_monthly. El término solo tiene letras (no hay inyección posible)
+// y se recorta a la raíz para tolerar plurales y errores al final ("apendiciti" → '%APENDICITI%').
+
+const DIAGNOSIS_CUE =
+  /\b(?:diagnostic\w*|dx|enfermedad\w*|casos?|pacientes?|ingres\w*|atendid\w*|hospitalizad\w*|consultas?)\b.*?\b(?:con|por|de)\s+(?:(?:un|una|el|la|los|las)\s+)?(?:(?:diagnostico|dx|enfermedad)\s+(?:de\s+)?)?([a-zñ]{5,})/;
+
+// Palabras que siguen a "con/por/de" pero no son enfermedades.
+const NOT_A_DIAGNOSIS = new Set([
+  'urgencias', 'emergencia', 'emergencias', 'hospitalizacion', 'pediatria', 'triage', 'triaje', 'medicamento',
+  'medicamentos', 'servicio', 'servicios', 'zona', 'rural', 'urbana', 'sexo', 'edad', 'edades', 'genero', 'regimen',
+  'subsidiado', 'contributivo', 'particular', 'vinculado', 'cirugia', 'cirugias', 'partos', 'cuidado', 'cuidados',
+  'intensivo', 'intensivos', 'intermedio', 'recuperacion', 'gineco', 'ginecologia', 'obstetricia', 'semana',
+  'semanas', 'mes', 'meses', 'hora', 'horas', 'noche', 'manana', 'tarde', 'camas', 'ocupacion', 'espera', 'tiempo',
+  'promedio', 'total', 'ayer', 'mujeres', 'hombres', 'ninos', 'niños', 'adultos', 'mayores', 'menores', 'femenino',
+  'masculino', 'especialidad', 'dias', 'ultimo', 'ultima', 'ultimos', 'ultimas', 'enero', 'febrero', 'marzo',
+  'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'grupo',
+  'grupos', 'nivel', 'niveles', 'tipo', 'tipos', 'turno', 'turnos', 'area', 'areas', 'sala', 'salas', 'ruta',
+  'clase', 'origen', 'subservicio', 'subservicios', 'semana', 'hospital', 'paciente', 'pacientes', 'ingreso',
+  'ingresos',
+]);
+
+// "diagnóstico de", "enfermedad", "dx": la pregunta dice explícitamente que busca una enfermedad.
+const EXPLICIT_DIAGNOSIS = /\b(?:diagnostic\w*|dx|enfermedad\w*)\b/;
+
+// Raíz: quita terminaciones de plural para que "neumonias" encuentre "NEUMONIA".
+function diagnosisStem(term: string): string {
+  const stem = term.replace(/(?:es|s)$/, '');
+  return (stem.length >= 5 ? stem : term).toUpperCase();
+}
+
+export function extractDiagnosisTerm(question: string): string | null {
+  const match = DIAGNOSIS_CUE.exec(normalizeText(question));
+  if (!match) return null;
+  const term = match[1];
+  return NOT_A_DIAGNOSIS.has(term) ? null : diagnosisStem(term);
+}
+
+function answerDiagnosisSearch(term: string) {
+  return (rows: Row[]): string => {
+    if (rows.length === 0) return NO_DATA_ANSWER;
+    const total = rows.reduce((acc, r) => acc + num(r.ingresos), 0);
+    const names = rows.length === 1 ? 'un diagnóstico' : `${rows.length} diagnósticos`;
+    return (
+      `Hubo ${fmt(total, 0)} ingresos con diagnósticos que contienen "${term.toLowerCase()}" (${names}; el principal es ${cap(String(rows[0].diagnostico))}). ` +
+      'Solo se cuentan grupos de 5 o más ingresos por mes y servicio; el detalle está en la tabla.'
+    );
+  };
+}
+
+export function isExplicitDiagnosisQuestion(question: string): boolean {
+  return EXPLICIT_DIAGNOSIS.test(normalizeText(question));
+}
+
+export function diagnosisSearchEntry(question: string): PlanBEntry | null {
+  const term = extractDiagnosisTerm(question);
+  if (!term) return null;
+  const thisMonth = canonicalize(question).includes('mes');
+  return {
+    id: 'diagnosis_search',
+    question: `¿Cuántos ingresos hubo con diagnóstico de ${term.toLowerCase()}?`,
+    variants: [],
+    keywords: [],
+    sql: `SELECT diagnosis_name AS diagnostico,
+       SUM(admissions_count)::int AS ingresos
+FROM agent.v_diagnosis_monthly
+WHERE diagnosis_name ILIKE '%${term}%'${thisMonth ? `
+  AND month = date_trunc('month', agent.reference_date())::date` : ''}
+GROUP BY diagnosis_name
+ORDER BY ingresos DESC, diagnosis_name ASC
+LIMIT 20`,
+    views_used: ['v_diagnosis_monthly'],
+    buildAnswer: answerDiagnosisSearch(term),
+  };
+}
+
 // ------------------------------------------------------------------ Emparejamiento
 
 export const MATCH_THRESHOLD = 0.7;
@@ -572,11 +649,16 @@ export function matchPlanB(question: string): PlanBMatch | null {
     const forms = [entry.question, ...entry.variants].map(normalizeText);
     if (forms.includes(normalized)) return { entry, score: 1 };
   }
+  // Una enfermedad concreta: ninguna pregunta fija filtra por diagnóstico. Si la pregunta lo dice
+  // explícitamente ("diagnóstico de neumonía"), gana la búsqueda; si no ("casos de dengue"), solo
+  // se usa cuando ninguna pregunta fija encaja.
+  const diagnosis = diagnosisSearchEntry(question);
+  if (diagnosis && isExplicitDiagnosisQuestion(question)) return { entry: diagnosis, score: MATCH_THRESHOLD };
   const tokens = canonicalize(question);
   const scored = PLAN_B.map((entry) => ({ entry, score: scoreEntry(entry, tokens) }))
     .filter((m) => m.score >= MATCH_THRESHOLD)
     .sort((a, b) => b.score - a.score);
-  if (scored.length === 0) return null;
+  if (scored.length === 0) return diagnosis ? { entry: diagnosis, score: MATCH_THRESHOLD } : null;
   // Dos candidatos casi empatados: ambigua, no se adivina.
   if (scored.length > 1 && scored[0].score - scored[1].score < AMBIGUITY_MARGIN) return null;
   return scored[0];
