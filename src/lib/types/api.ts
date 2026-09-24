@@ -229,6 +229,38 @@ export interface KpisResponse {
   service_filter: string | null;
 }
 
+// ---------------------------------------------------------------- GET /api/insights/arrivals (D6)
+
+export interface ArrivalsCell {
+  weekday: number; // 1 lunes a 7 domingo (ISO)
+  hour: number; // 0 a 23, hora de llegada
+  avg_arrivals: number; // llegadas ÷ veces que ese día de la semana aparece en el periodo
+}
+
+export interface ArrivalsPeak {
+  weekday: number;
+  weekday_name: string;
+  hour_start: number; // franja de 2 horas: hour_start a hour_end (hour_end 24 = medianoche)
+  hour_end: number;
+  avg_arrivals: number; // llegadas promedio en la franja
+  pct_above_average: number; // % sobre el promedio de las 84 franjas de la semana
+  shift: 'dia' | 'noche'; // turno donde cae la mayoría de las llegadas de la franja
+  recommendation: string;
+}
+
+export interface ArrivalsInsightResponse {
+  scope: KpiScope; // 'hospital'
+  period_start: IsoDate; // primer día con llegadas
+  period_end: IsoDate; // reference_date
+  days_count: number;
+  arrivals_total: number;
+  avg_arrivals_per_slot: number; // promedio de las 84 franjas (7 días × 12 franjas de 2 h)
+  cells: ArrivalsCell[]; // 168 celdas: día de la semana × hora
+  top_slots: ArrivalsPeak[]; // las 3 franjas con más llegadas frente al promedio
+  reference_date: IsoDate;
+  generated_at: AuditTimestamp;
+}
+
 // ---------------------------------------------------------------- GET /api/sources
 
 export type BatchLoadType = 'historical' | 'ui_import' | 'seed_synthetic';
