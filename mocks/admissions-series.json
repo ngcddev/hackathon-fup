@@ -1,0 +1,26 @@
+{
+  "_simulated": true,
+  "request": { "granularity": "month", "year": 2026 },
+  "response": {
+    "scope": "hospital",
+    "service_filter": null,
+    "granularity": "month",
+    "year": 2026,
+    "month": null,
+    "available_years": [2026],
+    "points": [
+      { "period": "2026-01", "admissions_count": 0 },
+      { "period": "2026-02", "admissions_count": 0 },
+      { "period": "2026-03", "admissions_count": 0 },
+      { "period": "2026-04", "admissions_count": 0 },
+      { "period": "2026-05", "admissions_count": 2233 },
+      { "period": "2026-06", "admissions_count": 2183 },
+      { "period": "2026-07", "admissions_count": 2146 },
+      { "period": "2026-08", "admissions_count": 2133 },
+      { "period": "2026-09", "admissions_count": 1445 }
+    ],
+    "total": 10140,
+    "reference_date": "2026-09-21",
+    "generated_at": "2026-09-21T08:00:00-05:00"
+  }
+}

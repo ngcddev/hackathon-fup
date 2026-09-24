@@ -6,6 +6,7 @@
 
 import type {
   AdminLogsResponse,
+  AdmissionsSeriesResponse,
   ApplyBatchResponse,
   CreateBatchRequest,
   CreateBatchResponse,
@@ -26,6 +27,7 @@ import type {
 } from '@/lib/types/api';
 
 import adminLogs from './admin-logs.json';
+import admissionsSeries from './admissions-series.json';
 import adminUsersCreate from './admin-users-create.json';
 import adminUsersList from './admin-users-list.json';
 import adminUsersResetPassword from './admin-users-reset-password.json';
@@ -64,6 +66,7 @@ export const mocks = {
   query: query satisfies Mock<QueryRequest, QueryResponse>,
   kpis: kpis satisfies Mock<{ service: string }, KpisResponse>,
   sources: sources satisfies Mock<null, SourcesResponse>,
+  admissionsSeries: admissionsSeries satisfies Mock<{ granularity: string; year: number }, AdmissionsSeriesResponse>,
   importBatchesCreate: importBatchesCreate satisfies Mock<CreateBatchRequest, CreateBatchResponse>,
   importBatchesRows: importBatchesRows satisfies Mock<SendRowsRequest, SendRowsResponse>,
   importBatchesApply: importBatchesApply satisfies Mock<null, ApplyBatchResponse>,
