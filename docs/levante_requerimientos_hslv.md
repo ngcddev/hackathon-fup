@@ -71,8 +71,7 @@ Por eso no hay una visión integrada de la operación, los directivos dependen d
 |---|---|---|---|
 | Directivo o gerente | `director` | Visión global y decisiones rápidas sobre capacidad y recursos. | Dashboard, alertas, resumen del día y agente. |
 | Jefe de servicio (UCI, urgencias, hospitalización) | `service_head` | Estado de su servicio: camas, esperas, demanda. | Preguntas al agente y KPIs filtrados por servicio. |
-| Personal administrativo | `administrative` | Mantener actualizados camas y programación quirúrgica. | Importador (camas y programación quirúrgica) y consultas puntuales. |
-| Personal de farmacia | `pharmacy` | Stock crítico, consumo y actualización del inventario. | Importador de inventario, alertas de desabastecimiento y consultas. |
+| Personal médico | `medic` | Consultar el estado del hospital y la demanda de su servicio. | Dashboard, alertas y preguntas al agente (solo lectura). |
 | Administrador del sistema (TI) | `admin` | Gestionar cuentas y cuidar la calidad de los datos cargados. | Administración de usuarios, historial y reversión de importaciones, logs. |
 | Jurado (usuario de la demo) | Cuentas demo por rol | Ver que la solución resuelve el reto de forma segura. | Las 4 preguntas de la demo, importación, dashboard, alertas y control de acceso. |
 
@@ -161,7 +160,7 @@ supabase-js se usa para Supabase Auth y para las consultas fijas del dashboard s
 ### 7.3 Usuarios
 
 - `auth.users` (Supabase Auth): correo y contraseña. El equipo no guarda contraseñas en tablas propias.
-- `core.user_profiles`: `user_id` (PK y FK a `auth.users`), `full_name`, `role` (`director`, `service_head`, `administrative`, `pharmacy`, `admin`), `is_active`, `must_change_password`, `created_by`, `created_at` y `updated_at`.
+- `core.user_profiles`: `user_id` (PK y FK a `auth.users`), `full_name`, `role` (`director`, `service_head`, `medic`, `admin`), `is_active`, `must_change_password`, `created_by`, `created_at` y `updated_at`.
 - `audit.user_admin_log`: quién hizo qué sobre qué cuenta (crear, cambiar rol, desactivar, reactivar, restablecer contraseña), con valor anterior, valor nuevo y fecha.
 - `audit.import_batches.imported_by_user_id` (FK a `user_profiles`; nulo solo para cargas por script) y `audit.query_log.user_id`.
 - La matriz de permisos vive en un solo archivo de código (`/lib/auth/permissions.ts`), versionado en Git, no en la base de datos. La base solo guarda el rol de cada usuario.
@@ -332,7 +331,7 @@ Prioridad según MoSCoW: **Must** (obligatorio), **Should** (importante), **Coul
 | ID | Requerimiento | Prioridad |
 |---|---|---|
 | AUT-01 | Inicio de sesión con correo y contraseña mediante Supabase Auth. Todas las páginas y endpoints (/api/query, /api/kpis, /api/import, /api/admin/*) exigen sesión válida: sin sesión, las páginas redirigen a /login y los endpoints responden 401. | Must |
-| AUT-02 | Cinco roles: `director`, `service_head`, `administrative`, `pharmacy` y `admin`. Cada usuario tiene un solo rol, guardado en `core.user_profiles`. | Must |
+| AUT-02 | Cuatro roles: `director`, `service_head`, `medic` y `admin`. Cada usuario tiene un solo rol, guardado en `core.user_profiles`. | Must |
 | AUT-03 | Matriz de permisos por función definida en un solo archivo (`/lib/auth/permissions.ts`) y aplicada en el servidor. Una acción sin permiso responde 403. Ver la matriz abajo. | Must |
 | AUT-04 | Página de administración de usuarios (solo `admin`): listar usuarios, crear usuario con nombre, correo, rol y contraseña temporal, cambiar el rol y desactivar o reactivar una cuenta. | Must |
 | AUT-05 | Un usuario desactivado pierde el acceso en su siguiente solicitud: el servidor verifica `is_active` en cada request, no solo el token. | Must |
@@ -412,7 +411,7 @@ Los valores preliminares salen del perfil y se recalculan con el SQL del plan B 
 
 Cada pregunta se acepta si cumple tres condiciones: el resultado coincide con el SQL de referencia del plan B, responde en menos de 10 segundos y sigue respondiendo con el LLM desactivado.
 
-**Control de acceso en la demo:** las 4 preguntas se hacen con una cuenta `director`. Además se muestra que la cuenta `pharmacy` puede importar el inventario de medicamentos y que la cuenta `director` no ve el importador; y que un intento directo a POST /api/import con la cuenta `director` responde 403. Las cuentas demo se crean desde la página de administración y se verifican en la fase de QA.
+**Control de acceso en la demo:** las 4 preguntas se hacen con una cuenta `director`. Además se muestra que la cuenta `admin` puede importar el inventario de medicamentos y que la cuenta `director` no ve el importador; y que un intento directo a POST /api/import con la cuenta `director` responde 403. Las cuentas demo se crean desde la página de administración y se verifican en la fase de QA.
 
 ## 13. Riesgos y mitigaciones
 

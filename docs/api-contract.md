@@ -58,19 +58,19 @@ Errores comunes a todos los endpoints: `UNAUTHENTICATED` (401), `ACCOUNT_DISABLE
 
 ## 3. Matriz de permisos (AUT-03)
 
-| Permiso | director | service_head | administrative | pharmacy | admin |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `dashboard:view` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `summary:view` (solo si se implementa D5) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `agent:query` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `sources:view` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `import:bed_inventory` | — | — | ✓ | — | ✓ |
-| `import:surgery_schedules` | — | — | ✓ | — | ✓ |
-| `import:drug_stock` | — | — | — | ✓ | ✓ |
-| `import:his_tables` (IMP-10, Could) | — | — | — | — | ✓ |
-| `import:revert` | — | — | — | — | ✓ |
-| `users:manage` | — | — | — | — | ✓ |
-| `logs:view` | — | — | — | — | ✓ |
+| Permiso | director | service_head | medic | admin |
+|---|:---:|:---:|:---:|:---:|
+| `dashboard:view` | ✓ | ✓ | ✓ | ✓ |
+| `summary:view` (solo si se implementa D5) | ✓ | ✓ | ✓ | ✓ |
+| `agent:query` | ✓ | ✓ | ✓ | ✓ |
+| `sources:view` | ✓ | ✓ | ✓ | ✓ |
+| `import:bed_inventory` | — | — | — | ✓ |
+| `import:surgery_schedules` | — | — | — | ✓ |
+| `import:drug_stock` | — | — | — | ✓ |
+| `import:his_tables` (IMP-10, Could) | — | — | — | ✓ |
+| `import:revert` | — | — | — | ✓ |
+| `users:manage` | — | — | — | ✓ |
+| `logs:view` | — | — | — | ✓ |
 
 `importPermissionFor(target)`: `drug_stock` → `import:drug_stock`, `bed_inventory` → `import:bed_inventory`, `surgery_schedules` → `import:surgery_schedules`.
 
@@ -106,8 +106,8 @@ Nombre, rol y permisos del usuario en sesión (barra superior, AUT-08, y menú s
 {
   "id": "6f1c2a7e-3b0d-4c55-9a11-0d2e5c7b8a01",
   "full_name": "Laura Mendoza (cuenta demo)",
-  "role": "pharmacy",
-  "permissions": ["dashboard:view", "summary:view", "agent:query", "sources:view", "import:drug_stock"]
+  "role": "medic",
+  "permissions": ["dashboard:view", "summary:view", "agent:query", "sources:view"]
 }
 ```
 

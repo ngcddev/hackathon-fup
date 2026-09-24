@@ -79,10 +79,10 @@ describe('withAuth: sesión real', () => {
 
   it('con permiso: el handler recibe el rol de la base, no del token', async () => {
     getClaims.mockResolvedValue({ data: { claims: { sub: 'u', user_metadata: { role: 'admin' } } }, error: null });
-    profile({ role: 'pharmacy' });
-    const { status, body } = await call('import:drug_stock');
+    profile({ role: 'medic' });
+    const { status, body } = await call('agent:query');
     expect(status).toBe(200);
-    expect(body).toEqual({ role: 'pharmacy' });
+    expect(body).toEqual({ role: 'medic' });
     expect(queryAsAppBackend).toHaveBeenCalledWith(expect.stringContaining('core.user_profiles'), ['u']);
   });
 

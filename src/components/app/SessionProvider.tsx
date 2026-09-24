@@ -9,8 +9,7 @@ const SessionContext = createContext<MeResponse | null>(null);
 export const ROLE_LABEL: Record<Role, string> = {
   director: 'Director',
   service_head: 'Jefe de servicio',
-  administrative: 'Administrativo',
-  pharmacy: 'Farmacia',
+  medic: 'Médico',
   admin: 'Administrador',
 };
 
