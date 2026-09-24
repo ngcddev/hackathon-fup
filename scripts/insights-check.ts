@@ -50,8 +50,33 @@ async function checkEmergencyWaitAlerts() {
   report('ALE-04 triage 3 sobre 120 min es advertencia con el turno de mayor espera', synthetic.length === 1 && synthetic[0].alert.severity === 'warning' && synthetic[0].alert.recommendation.endsWith('turno noche.'));
 }
 
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function checkDepletionForecast() {
+  const { getKpis } = await import('@/lib/queries/kpis');
+  const kpis = await getKpis(null);
+  const card = kpis.critical_drugs;
+  report('D2 la tarjeta muestra los días objetivo usados (15)', card.target_days === 15, String(card.target_days));
+  const bad = card.items.filter((d) => {
+    const expectedDate = addDays(kpis.reference_date, Math.floor(d.days_of_inventory));
+    const expectedQty = Math.max(Math.ceil(d.avg_daily_consumption * 15 - d.current_stock), 0);
+    return d.estimated_stockout_date !== expectedDate || d.suggested_order_quantity !== expectedQty;
+  });
+  report('D2 fecha de quiebre = referencia + días (hacia abajo) y cantidad = ceil(consumo × N − stock)', card.items.length > 0 && bad.length === 0, bad.map((d) => d.item_code).join(', '));
+  const sample = card.items[0];
+  console.log(`      ${sample.item_name}: ${sample.days_of_inventory} días → quiebre ${sample.estimated_stockout_date}, pedir ${sample.suggested_order_quantity}`);
+  const alert = kpis.alerts.find((a) => a.id === `stockout:${sample.item_code}`);
+  report('D2 ALE-01 incluye la fecha de quiebre y la cantidad sugerida', !!alert && alert.message.includes(sample.estimated_stockout_date ?? '?') && alert.recommendation.includes('para cubrir 15 días'), alert?.message);
+  report('D2 sin datos identificables', leaks(card).length === 0);
+}
+
 async function main() {
   await checkEmergencyWaitAlerts();
+  await checkDepletionForecast();
   process.exit(failures === 0 ? 0 : 1);
 }
 
