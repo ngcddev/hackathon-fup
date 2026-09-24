@@ -50,8 +50,293 @@ async function checkEmergencyWaitAlerts() {
   report('ALE-04 triage 3 sobre 120 min es advertencia con el turno de mayor espera', synthetic.length === 1 && synthetic[0].alert.severity === 'warning' && synthetic[0].alert.recommendation.endsWith('turno noche.'));
 }
 
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function checkDepletionForecast() {
+  const { getKpis } = await import('@/lib/queries/kpis');
+  const kpis = await getKpis(null);
+  const card = kpis.critical_drugs;
+  report('D2 la tarjeta muestra los días objetivo usados (15)', card.target_days === 15, String(card.target_days));
+  const bad = card.items.filter((d) => {
+    const expectedDate = addDays(kpis.reference_date, Math.floor(d.days_of_inventory));
+    const expectedQty = Math.max(Math.ceil(d.avg_daily_consumption * 15 - d.current_stock), 0);
+    return d.estimated_stockout_date !== expectedDate || d.suggested_order_quantity !== expectedQty;
+  });
+  report('D2 fecha de quiebre = referencia + días (hacia abajo) y cantidad = ceil(consumo × N − stock)', card.items.length > 0 && bad.length === 0, bad.map((d) => d.item_code).join(', '));
+  const sample = card.items[0];
+  console.log(`      ${sample.item_name}: ${sample.days_of_inventory} días → quiebre ${sample.estimated_stockout_date}, pedir ${sample.suggested_order_quantity}`);
+  const alert = kpis.alerts.find((a) => a.id === `stockout:${sample.item_code}`);
+  report('D2 ALE-01 incluye la fecha de quiebre y la cantidad sugerida', !!alert && alert.message.includes(sample.estimated_stockout_date ?? '?') && alert.recommendation.includes('para cubrir 15 días'), alert?.message);
+  report('D2 sin datos identificables', leaks(card).length === 0);
+}
+
+async function checkTrendAndStay() {
+  const { getKpis } = await import('@/lib/queries/kpis');
+  const kpis = await getKpis(null);
+  const trend = kpis.occupancy_trend;
+  const stay = kpis.avg_stay;
+  report('DAS-08 30 días hasta la fecha de referencia con scope service', trend?.scope === 'service' && trend.days.length === 30 && trend.days[0].day === addDays(kpis.reference_date, -29) && trend.days[29].day === kpis.reference_date, `${trend?.days[0]?.day} a ${trend?.days.at(-1)?.day}`);
+  const last = trend?.days.at(-1);
+  report('DAS-08 el último día coincide con la tarjeta de ocupación (DAS-01)', last?.occupied_beds === kpis.occupancy.total.occupied_beds && last?.capacity === kpis.occupancy.total.capacity && last?.occupancy_pct === kpis.occupancy.total.occupancy_pct, JSON.stringify(last));
+  report('DAS-08 cada día = ocupadas ÷ capacidad', !!trend && trend.days.every((d) => d.capacity > 0 && d.occupancy_pct === Math.round((1000 * d.occupied_beds) / d.capacity) / 10));
+  const uci = await getKpis('UNIDAD DE CUIDADO INTENSIVO');
+  report('DAS-08 con filtro UCI el último día es 30/46 (65,2 %)', uci.occupancy_trend?.days.at(-1)?.occupied_beds === 30 && uci.occupancy_trend?.days.at(-1)?.capacity === 46);
+  report('DAS-09 estancia por servicio, scope service, valores plausibles', stay?.scope === 'service' && stay.by_service.length > 0 && stay.by_service.every((s) => s.avg_stay_days >= 0 && s.avg_stay_days < 60 && s.admissions_count > 0), stay?.by_service.map((s) => `${s.service}: ${s.avg_stay_days} d (${s.admissions_count})`).join('; '));
+  report('DAS-09 con filtro UCI solo trae el servicio UCI', uci.avg_stay?.by_service.length === 1 && uci.avg_stay.by_service[0].service === 'UNIDAD DE CUIDADO INTENSIVO', JSON.stringify(uci.avg_stay?.by_service));
+  report('DAS-08/09 sin datos identificables', leaks([trend, stay]).length === 0);
+
+  const times: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const t = performance.now();
+    await getKpis(null);
+    times.push(Math.round(performance.now() - t));
+  }
+  console.log(`      GET /api/kpis, 6 corridas seguidas (ms, medidas desde esta máquina): ${times.join(', ')}`);
+}
+
+// IMP-08. Corre dentro de una transacción que SIEMPRE termina en ROLLBACK: no deja lotes,
+// filas ni el admin de prueba en la base. Usa los roles reales (importer y app_backend) con
+// SET LOCAL ROLE, sobre la conexión de HIS_LOAD_DATABASE_URL (solo en tu máquina).
+async function checkRevert() {
+  const url = process.env.HIS_LOAD_DATABASE_URL;
+  if (!url) {
+    console.log('SALTA  IMP-08 (falta HIS_LOAD_DATABASE_URL)');
+    return;
+  }
+  const { Client } = await import('pg');
+  const { getDrugRiskRows } = await import('@/lib/queries/kpis/critical-drugs');
+  const { buildStockoutAlerts } = await import('@/lib/alerts/stockout');
+  const parsed = new URL(url);
+  parsed.searchParams.delete('sslmode');
+  const isLocal = ['localhost', '127.0.0.1'].includes(parsed.hostname);
+  const client = new Client({ connectionString: parsed.toString(), ssl: isLocal ? false : { rejectUnauthorized: false } });
+  await client.connect();
+  const q = async <T>(sql: string, params: unknown[] = []) => (await client.query(sql, params)).rows as T[];
+  // La conexión de la carga histórica no puede hacer SET ROLE importer/app_backend, así que las
+  // funciones corren con su dueño. Los permisos de EXECUTE por rol se comprueban aparte (has_function_privilege).
+  const asRole = async <T>(_role: 'importer' | 'app_backend', fn: () => Promise<T>): Promise<T> => fn();
+  // Un error de Postgres aborta la transacción: cada intento negativo va en un savepoint.
+  const failsWith = async (sqlstate: string, fn: () => Promise<unknown>) => {
+    await client.query('SAVEPOINT neg');
+    try {
+      await fn();
+      await client.query('RELEASE SAVEPOINT neg');
+      return false;
+    } catch (error) {
+      await client.query('ROLLBACK TO SAVEPOINT neg');
+      return (error as { code?: string }).code === sqlstate;
+    }
+  };
+  const critical = async () =>
+    buildStockoutAlerts(await getDrugRiskRows(q))
+      .filter((r) => r.alert.severity === 'critical')
+      .map((r) => r.alert.id)
+      .sort();
+
+  try {
+    await client.query('BEGIN');
+    const [grants] = await q<{ app: boolean; importer: boolean; agent: boolean; pub: boolean }>(
+      `SELECT has_function_privilege('app_backend', 'core.revert_batch(uuid, uuid)', 'EXECUTE') AS app,
+              has_function_privilege('importer', 'core.revert_batch(uuid, uuid)', 'EXECUTE') AS importer,
+              has_function_privilege('agent_ro', 'core.revert_batch(uuid, uuid)', 'EXECUTE') AS agent,
+              has_function_privilege('anon', 'core.revert_batch(uuid, uuid)', 'EXECUTE') AS pub`,
+    );
+    report('IMP-08 EXECUTE de core.revert_batch solo para app_backend', grants.app && !grants.importer && !grants.agent && !grants.pub, JSON.stringify(grants));
+    const [fn] = await q<{ prosecdef: boolean; proconfig: string[] }>(
+      "SELECT prosecdef, proconfig FROM pg_proc WHERE oid = 'core.revert_batch(uuid, uuid)'::regprocedure",
+    );
+    report('IMP-08 core.revert_batch es SECURITY DEFINER con search_path fijo', fn.prosecdef && fn.proconfig.some((c) => c.startsWith('search_path=')), fn.proconfig.join(' '));
+    const adminId = '11111111-1111-4111-8111-111111111111';
+    const pharmacyId = '22222222-2222-4222-8222-222222222222';
+    for (const [id, role] of [
+      [adminId, 'admin'],
+      [pharmacyId, 'pharmacy'],
+    ]) {
+      await q('INSERT INTO auth.users (id, email) VALUES ($1, $2)', [id, `${role}.prueba@example.invalid`]);
+      await q('INSERT INTO core.user_profiles (user_id, full_name, role) VALUES ($1, $2, $3)', [id, `Prueba ${role}`, role]);
+    }
+    const newBatch = async (target: string, file: string) =>
+      (
+        await asRole('importer', () =>
+          q<{ batch_id: string }>(
+            `INSERT INTO audit.import_batches (load_type, target_table, file_name, source_system, imported_by_user_id)
+             VALUES ('ui_import', $1, $2, 'Prueba', $3) RETURNING batch_id`,
+            [target, file, adminId],
+          ),
+        )
+      )[0].batch_id;
+    const apply = (batchId: string) =>
+      asRole('importer', async () => (await q<{ s: string }>('SELECT core.apply_batch($1) AS s', [batchId]))[0].s);
+    const revert = (batchId: string, actor = adminId) =>
+      asRole('app_backend', async () => (await q<{ n: number }>('SELECT core.revert_batch($1, $2) AS n', [batchId, actor]))[0].n);
+
+    // --- drug_stock: importar una foto nueva de los medicamentos críticos y revertirla.
+    const before = await critical();
+    const drugs = await q<{ item_code: string; item_name: string; avg_daily_consumption: number }>(
+      `SELECT item_code, item_name, avg_daily_consumption::float8 AS avg_daily_consumption FROM agent.v_drug_inventory
+        WHERE item_type = 'medicamento' AND days_of_inventory < 5`,
+    );
+    const stockBatch = await newBatch('drug_stock', 'drug_stock_valido.csv');
+    await asRole('importer', async () => {
+      for (const [i, d] of drugs.entries()) {
+        await q(
+          `INSERT INTO staging.stg_drug_stock (batch_id, source_row_number, item_code, item_name, current_stock, unit, stock_date, expiration_date)
+           VALUES ($1, $2, $3, $4, $5, 'UND', '2026-09-22', '2027-12-31')`,
+          [stockBatch, i + 1, d.item_code, d.item_name, String(Math.ceil(d.avg_daily_consumption * 20))],
+        );
+      }
+    });
+    report('IMP-08 el lote de inventario se aplica', (await apply(stockBatch)) === 'applied');
+    const during = await critical();
+    report('IMP-08 con la foto nueva salen las alertas críticas de esos medicamentos', before.length > 0 && during.length < before.length, `antes ${before.length}, durante ${during.length}`);
+    const removed = await revert(stockBatch);
+    report('IMP-08 revertir devuelve las filas borradas', removed === drugs.length, `rows_reverted=${removed}`);
+    const after = await critical();
+    report('IMP-08 tras revertir las alertas críticas vuelven a ser las de antes', JSON.stringify(after) === JSON.stringify(before), `antes ${before.length}, después ${after.length}`);
+    const [row] = await q<{ status: string; reverted_by_user_id: string; reverted_at: string | null }>(
+      'SELECT status, reverted_by_user_id, reverted_at FROM audit.import_batches WHERE batch_id = $1',
+      [stockBatch],
+    );
+    report('IMP-08 el lote queda reverted con quién y cuándo', row.status === 'reverted' && row.reverted_by_user_id === adminId && row.reverted_at !== null);
+    report('IMP-08 un lote ya revertido no se revierte de nuevo (55000)', await failsWith('55000', () => revert(stockBatch)));
+    report('IMP-08 un no admin no puede revertir (42501)', await failsWith('42501', () => revert(stockBatch, pharmacyId)));
+    report('IMP-08 un lote inexistente responde P0002', await failsWith('P0002', () => revert('33333333-3333-4333-8333-333333333333')));
+    const [hist] = await q<{ batch_id: string; rows_loaded: number }>(
+      "SELECT batch_id, rows_loaded FROM audit.import_batches WHERE load_type = 'historical' AND target_table = 'bed_inventory'",
+    );
+    report('IMP-08 un lote histórico no se revierte (55000)', await failsWith('55000', () => revert(hist.batch_id)));
+
+    // --- bed_inventory: las camas importadas reemplazan camas derived; al revertir vuelven a derivarse.
+    const capacity = async () => (await q<{ n: number }>('SELECT count(*)::int AS n FROM core.bed_inventory WHERE is_active'))[0].n;
+    const beds = await q<{ bed_code: string; bed_name: string; bed_group: string; bed_subgroup: string }>(
+      'SELECT bed_code, bed_name, bed_group, bed_subgroup FROM core.bed_inventory ORDER BY bed_code LIMIT 3',
+    );
+    const cap0 = await capacity();
+    const bedBatch = await newBatch('bed_inventory', 'camas_prueba.csv');
+    await asRole('importer', async () => {
+      for (const [i, b] of beds.entries()) {
+        await q(
+          `INSERT INTO staging.stg_bed_inventory (batch_id, source_row_number, bed_code, bed_name, bed_group, bed_subgroup, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, 'false')`,
+          [bedBatch, i + 1, b.bed_code, b.bed_name, b.bed_group, b.bed_subgroup],
+        );
+      }
+    });
+    const bedStatus = await apply(bedBatch);
+    const capDuring = await capacity();
+    report('IMP-08 el lote de camas se aplica y reemplaza camas derived', bedStatus === 'applied' && capDuring === cap0 - 3, `capacidad ${cap0} → ${capDuring}`);
+    const removedBeds = await revert(bedBatch);
+    const restored = await q<{ bed_code: string; data_origin: string; batch_id: string }>(
+      'SELECT bed_code, data_origin, batch_id FROM core.bed_inventory WHERE bed_code = ANY($1)',
+      [beds.map((b) => b.bed_code)],
+    );
+    const capAfter = await capacity();
+    report(
+      'IMP-08 las camas vuelven a derivarse y la capacidad no queda en cero',
+      removedBeds === 3 && capAfter === cap0 && restored.length === 3 && restored.every((r) => r.data_origin === 'derived' && r.batch_id === hist.batch_id),
+      `capacidad ${capAfter}, rows_reverted=${removedBeds}`,
+    );
+    const [hist2] = await q<{ rows_loaded: number; status: string }>('SELECT rows_loaded, status FROM audit.import_batches WHERE batch_id = $1', [hist.batch_id]);
+    report('IMP-08 el lote histórico de camas queda intacto', hist2.rows_loaded === hist.rows_loaded && hist2.status === 'applied', `rows_loaded ${hist.rows_loaded} → ${hist2.rows_loaded}`);
+    const [occ] = await q<{ cap: number }>('SELECT sum(capacity)::int AS cap FROM agent.v_bed_occupancy WHERE day = agent.reference_date()');
+    report('IMP-08 la capacidad diaria vuelve a la de antes (712)', occ.cap === 712, String(occ.cap));
+
+    // --- surgery_schedules
+    const surgeryBatch = await newBatch('surgery_schedules', 'cirugias_prueba.csv');
+    await asRole('importer', () =>
+      q(
+        `INSERT INTO staging.stg_surgery_schedule (batch_id, source_row_number, schedule_number, patient_id, admission_id, service_code, scheduled_date, operating_room)
+         VALUES ($1, 1, 'PRUEBA-REVERT-1', '1', NULL, 'PRUEBA', '2026-09-01', 'Q1')`,
+        [surgeryBatch],
+      ),
+    );
+    const surgeryStatus = await apply(surgeryBatch);
+    const countSurgery = async () => (await q<{ n: number }>("SELECT count(*)::int AS n FROM core.surgery_schedules WHERE schedule_number = 'PRUEBA-REVERT-1'"))[0].n;
+    const inserted = await countSurgery();
+    const removedSurgeries = await revert(surgeryBatch);
+    const left = await countSurgery();
+    report('IMP-08 la programación quirúrgica importada se borra al revertir', surgeryStatus === 'applied' && inserted === 1 && removedSurgeries === 1 && left === 0, `${surgeryStatus}, ${inserted} → ${left}`);
+  } finally {
+    await client.query('ROLLBACK');
+    await client.end();
+  }
+}
+
+// revertBatch con el rol real app_backend: solo caminos de error, no escribe nada.
+async function checkRevertErrors(batchesBefore: number) {
+  const { revertBatch } = await import('@/lib/import/revert');
+  const { ApiError } = await import('@/lib/api/errors');
+  const { queryAsAppBackend } = await import('@/lib/db');
+  const codeOf = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      return 'sin error';
+    } catch (error) {
+      return error instanceof ApiError ? error.code : String(error);
+    }
+  };
+  const ghost = '33333333-3333-4333-8333-333333333333';
+  report('IMP-08 id mal formado -> VALIDATION_ERROR', (await codeOf(() => revertBatch('no-es-uuid', ghost))) === 'VALIDATION_ERROR');
+  report('IMP-08 actor que no es admin -> FORBIDDEN', (await codeOf(() => revertBatch(ghost, ghost))) === 'FORBIDDEN');
+  const [b] = await queryAsAppBackend<{ n: number }>('SELECT count(*)::int AS n FROM audit.import_batches');
+  const [u] = await queryAsAppBackend<{ n: number }>('SELECT count(*)::int AS n FROM core.user_profiles');
+  report('IMP-08 la prueba no dejó lotes ni usuarios en la base (ROLLBACK)', b.n === batchesBefore && u.n === 0, `lotes ${batchesBefore} → ${b.n}, perfiles ${u.n}`);
+}
+
+async function checkArrivals() {
+  const { buildArrivals, getArrivalsInsight } = await import('@/lib/queries/insights/arrivals');
+  const { queryAsAppBackend } = await import('@/lib/db');
+
+  // Datos sintéticos con resultado calculado a mano: 1 llegada por celda y día de la semana (una
+  // aparición de cada día), salvo martes 10 y 11 h con 2. Franja martes 10-12 = 4, las otras 83 = 2.
+  const rows = [];
+  for (let weekday = 1; weekday <= 7; weekday++)
+    for (let hour = 0; hour < 24; hour++) rows.push({ weekday, hour, arrivals: weekday === 2 && (hour === 10 || hour === 11) ? 2 : 1 });
+  const occurrences = Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((d) => [d, 1]));
+  const synthetic = buildArrivals(rows, { period_start: '2026-09-15', period_end: '2026-09-21', days_count: 7, occurrences }, '2026-09-21');
+  const top = synthetic.top_slots[0];
+  const baseline = (83 * 2 + 4) / 84;
+  report('D6 (sintético) la franja pico es martes 10 a 12 con 98 % sobre el promedio', top.weekday === 2 && top.hour_start === 10 && top.hour_end === 12 && top.pct_above_average === Math.round(100 * (4 / baseline - 1)), top.recommendation);
+  report('D6 (sintético) la recomendación sigue la plantilla', top.recommendation === 'Martes de 10 a 12: 98 % por encima del promedio; reforzar el turno día.', top.recommendation);
+  report('D6 (sintético) 168 celdas y promedio de franjas', synthetic.cells.length === 168 && synthetic.avg_arrivals_per_slot === Math.round(baseline * 100) / 100);
+
+  const real = await getArrivalsInsight();
+  const [truth] = await queryAsAppBackend<{ total: number; d0: string }>(
+    `SELECT COUNT(*)::int AS total, MIN(admitted_at)::date::text AS d0 FROM agent.v_admissions
+      WHERE admission_route = 'Urgencias' AND admitted_at < (SELECT agent.reference_date()) + 1`,
+  );
+  report('D6 total de llegadas y periodo coinciden con la base', real.arrivals_total === truth.total && real.period_start === truth.d0 && real.period_end === real.reference_date && real.days_count === 144, `${real.arrivals_total} llegadas, ${real.period_start} a ${real.period_end}, ${real.days_count} días`);
+  report('D6 168 celdas (7 días × 24 horas)', real.cells.length === 168);
+  // Verificación independiente de la franja pico: llegadas ÷ veces que aparece ese día de la semana.
+  const p = real.top_slots[0];
+  const [slot] = await queryAsAppBackend<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM agent.v_admissions
+      WHERE admission_route = 'Urgencias' AND admitted_at < (SELECT agent.reference_date()) + 1
+        AND EXTRACT(ISODOW FROM admitted_at)::int = $1 AND EXTRACT(HOUR FROM admitted_at)::int >= $2 AND EXTRACT(HOUR FROM admitted_at)::int < $3`,
+    [p.weekday, p.hour_start, p.hour_end],
+  );
+  let occ = 0;
+  for (let d = new Date(`${real.period_start}T00:00:00Z`); d <= new Date(`${real.period_end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) if (((d.getUTCDay() + 6) % 7) + 1 === p.weekday) occ++;
+  report('D6 promedio de la franja pico = llegadas ÷ apariciones del día (cálculo independiente)', p.avg_arrivals === Math.round((10 * slot.n) / occ) / 10, `${slot.n} llegadas ÷ ${occ} = ${(slot.n / occ).toFixed(2)}`);
+  report('D6 3 franjas, de mayor a menor, todas sobre el promedio', real.top_slots.length === 3 && real.top_slots.every((s, i, a) => s.pct_above_average > 0 && (i === 0 || a[i - 1].avg_arrivals >= s.avg_arrivals)));
+  report('D6 recomendaciones con la plantilla', real.top_slots.every((s) => /^\p{Lu}\p{L}+ de \d+ a \d+: \d+ % por encima del promedio; reforzar el turno (día|noche)\.$/u.test(s.recommendation)));
+  report('D6 sin datos identificables', leaks(real).length === 0);
+  for (const s of real.top_slots) console.log(`      ${s.recommendation} (${s.avg_arrivals} llegadas por franja; promedio ${real.avg_arrivals_per_slot})`);
+}
+
 async function main() {
   await checkEmergencyWaitAlerts();
+  await checkDepletionForecast();
+  await checkTrendAndStay();
+  const { queryAsAppBackend } = await import('@/lib/db');
+  const [{ n: batchesBefore }] = await queryAsAppBackend<{ n: number }>('SELECT count(*)::int AS n FROM audit.import_batches');
+  await checkRevert();
+  await checkRevertErrors(batchesBefore);
+  await checkArrivals();
   process.exit(failures === 0 ? 0 : 1);
 }
 

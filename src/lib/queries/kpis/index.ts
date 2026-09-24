@@ -1,17 +1,19 @@
 import { buildAlerts } from '@/lib/alerts';
 import { ApiError } from '@/lib/api/errors';
 import type { KpisResponse } from '@/lib/types/api';
+import { getAvgStayCard } from './avg-stay';
 import { buildCriticalDrugsCard, getDrugRiskRows } from './critical-drugs';
 import { getDemandCard } from './demand';
 import { getDrugRotationCard } from './drug-rotation';
 import { getEmergencyWaitData } from './emergency-wait';
 import { buildOccupancyCard, getOccupancySnapshot, listServices } from './occupancy';
+import { getOccupancyTrendCard } from './occupancy-trend';
 import { getSurgeriesCard } from './surgeries';
 
 // Orquesta todas las consultas en paralelo. `service` filtra solo las tarjetas con scope
 // 'service'; las alertas son siempre de todo el hospital (DAS-10, ALE-03).
 export async function getKpis(service: string | null): Promise<KpisResponse> {
-  const [snapshot, drugRows, waitData, surgeries, demand, drug_rotation, services] =
+  const [snapshot, drugRows, waitData, surgeries, demand, drug_rotation, occupancy_trend, avg_stay, services] =
     await Promise.all([
       getOccupancySnapshot(),
       getDrugRiskRows(),
@@ -19,6 +21,8 @@ export async function getKpis(service: string | null): Promise<KpisResponse> {
       getSurgeriesCard(),
       getDemandCard(service),
       getDrugRotationCard(),
+      getOccupancyTrendCard(service),
+      getAvgStayCard(service),
       service === null ? Promise.resolve<string[] | null>(null) : listServices(),
     ]);
 
@@ -33,6 +37,8 @@ export async function getKpis(service: string | null): Promise<KpisResponse> {
     surgeries,
     demand,
     drug_rotation,
+    occupancy_trend,
+    avg_stay,
     alerts: buildAlerts(snapshot.rows, drugRows, waitData.card, waitData.by_shift),
     reference_date: snapshot.day,
     generated_at: new Date().toISOString(),
