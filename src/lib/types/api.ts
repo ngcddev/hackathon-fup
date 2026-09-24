@@ -294,6 +294,28 @@ export interface ArrivalsInsightResponse {
   generated_at: AuditTimestamp;
 }
 
+// ---------------------------------------------------------------- GET /api/insights/admissions-series
+
+export type AdmissionsGranularity = 'year' | 'month' | 'day';
+
+export interface AdmissionsSeriesPoint {
+  period: string; // 'AAAA' (year), 'AAAA-MM' (month) o 'AAAA-MM-DD' (day)
+  admissions_count: number; // pacientes hospitalarios distintos en el periodo (S-05); 0 si no hubo
+}
+
+export interface AdmissionsSeriesResponse {
+  scope: KpiScope; // 'service' si hay filtro de servicio, 'hospital' si no
+  service_filter: string | null;
+  granularity: AdmissionsGranularity;
+  year: number | null; // año que se muestra (month y day); null en year
+  month: number | null; // mes que se muestra, 1 a 12 (solo day); null en year y month
+  available_years: number[]; // años con ingresos hasta reference_date, del más antiguo al más reciente
+  points: AdmissionsSeriesPoint[]; // sin periodos posteriores a reference_date
+  total: number; // suma de admissions_count de los puntos
+  reference_date: IsoDate;
+  generated_at: AuditTimestamp;
+}
+
 // ---------------------------------------------------------------- GET /api/insights/wait-root-cause (D7)
 
 export interface WaitPeriod {

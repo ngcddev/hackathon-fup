@@ -6,6 +6,7 @@
 
 import type {
   AdminLogsResponse,
+  AdmissionsSeriesResponse,
   AlertSuggestionRequest,
   AlertSuggestionResponse,
   ApplyBatchResponse,
@@ -28,6 +29,7 @@ import type {
 } from '@/lib/types/api';
 
 import adminLogs from './admin-logs.json';
+import admissionsSeries from './admissions-series.json';
 import alertsSuggestion from './alerts-suggestion.json';
 import adminUsersCreate from './admin-users-create.json';
 import adminUsersList from './admin-users-list.json';
@@ -68,6 +70,7 @@ export const mocks = {
   kpis: kpis satisfies Mock<{ service: string }, KpisResponse>,
   alertsSuggestion: alertsSuggestion satisfies Mock<AlertSuggestionRequest, AlertSuggestionResponse>,
   sources: sources satisfies Mock<null, SourcesResponse>,
+  admissionsSeries: admissionsSeries satisfies Mock<{ granularity: string; year: number }, AdmissionsSeriesResponse>,
   importBatchesCreate: importBatchesCreate satisfies Mock<CreateBatchRequest, CreateBatchResponse>,
   importBatchesRows: importBatchesRows satisfies Mock<SendRowsRequest, SendRowsResponse>,
   importBatchesApply: importBatchesApply satisfies Mock<null, ApplyBatchResponse>,
