@@ -17,13 +17,14 @@ import {
   type Finding,
 } from './insights';
 import { forgetDecision, generateSqlWithLlm, isLlmEnabled, rememberDecision, type LlmDecision } from './llm';
-import { NO_DATA_ANSWER, matchPlanB, suggestedQuestions } from './plan-b';
+import { NO_DATA_ANSWER, isForwardLooking, matchPlanB, suggestedQuestions } from './plan-b';
 import { isSensitiveQuestion, redactQuestionForLog, SENSITIVE_MESSAGE, stripPatientKey } from './privacy';
 import { logQuery } from './query-log';
 import { MAX_LIMIT, validateSql } from './validator';
 
 // Flujo de POST /api/query (AGE-03 a AGE-07):
-//   privacidad → LLM (Gemini → Groq) → según el type: sensitive → 422; out_of_scope → plan B o 422;
+//   privacidad → pregunta idéntica a una del plan B (respuesta directa, sin LLM) →
+//   LLM (Gemini → Groq) → según el type: sensitive → 422; out_of_scope → plan B o 422;
 //   sql → validador → runAgentQuery. Si el LLM, el validador o la ejecución fallan → plan B (AGE-05).
 //   → quitar patient_key → respuesta → registro en audit.query_log (con la causa del respaldo).
 
@@ -253,8 +254,14 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
   let outOfScopeReason: string | null = null;
   let validatorRejected = false;
 
+  // 0. Una pregunta idéntica a una del plan B (las de la demo y sus variantes), o que cumple todas las palabras
+  //    clave de una entrada `direct`, se responde con su SQL fijo: sin gastar tokens del LLM ni depender de la
+  //    red, y siempre con la misma respuesta.
+  const match = matchPlanB(question);
+  const directPlanB = match !== null && (match.exact || (match.score === 1 && match.entry.direct === true));
+
   // 1. LLM (Gemini → Groq). Con AGENT_LLM_ENABLED apagado no hay llamada y el flujo sigue con el plan B.
-  if (isLlmEnabled()) {
+  if (!directPlanB && isLlmEnabled()) {
     const llm = await generateSqlWithLlm(question);
     if (llm.status === 'unavailable') {
       trace.note = `LLM no disponible: ${llm.reason}`;
@@ -289,13 +296,18 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
   }
 
   // 2. Plan B (AGE-05).
-  const match = matchPlanB(question);
   if (!match) {
     if (outOfScopeReason !== null) {
       throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(outOfScopeReason));
     }
     // SQL del LLM bloqueado por el validador (p. ej. pide otro esquema) y sin plan B: se trata como fuera de alcance.
     if (validatorRejected) throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(null));
+    if (isForwardLooking(question)) {
+      throw new ApiError(
+        'OUT_OF_SCOPE',
+        outOfScopeMessage('Solo consulto datos históricos y de hoy; no hago pronósticos ni estimaciones del futuro'),
+      );
+    }
     const suggestions = suggestedQuestions()
       .map((q) => `"${q}"`)
       .join(' · ');
@@ -304,7 +316,14 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
       `No pude interpretar la pregunta y el asistente inteligente no está disponible. Prueba con una de estas: ${suggestions}`,
     );
   }
+  // El LLM dijo que ninguna vista responde y el plan B solo coincide por palabras clave: es más honesto
+  // rechazar que devolver una pregunta parecida (p. ej. "menos frecuente en cardiología" no existe).
+  if (outOfScopeReason !== null && !match.exact) {
+    throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(outOfScopeReason));
+  }
   const { entry } = match;
+  // Coincidencia aproximada: se dice qué pregunta se respondió, para que no parezca la que se hizo.
+  const interpretedAs = !match.exact ? `Interpreté tu pregunta como: «${entry.question}» ` : '';
   trace.origin = 'predefined';
   trace.provider = null;
 
@@ -320,7 +339,7 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
   const result = await runWithColdCacheRetry(validation.sql);
   const { columns, rows } = stripPatientKey(result.columns, result.rows);
   const response = buildResponse(question, started, await getReferenceDate(), {
-    answer: rows.length === 0 ? NO_DATA_ANSWER : entry.buildAnswer(rows),
+    answer: interpretedAs + (rows.length === 0 ? NO_DATA_ANSWER : entry.buildAnswer(rows)),
     sql: validation.sql,
     viewsUsed: validation.viewsUsed,
     columns,

@@ -1,8 +1,8 @@
 // Cliente del LLM (AGE-02, RNF-10, RNF-03). Sin imports del servidor: se prueba con vitest.
 //
 // Cadena: Gemini (principal) → un reintento solo ante 429 o 5xx → Groq (respaldo) → plan B.
-// Presupuesto total de 8 s con AbortController: Gemini hasta 3,5 s por llamada y Groq hasta 4 s.
-// Gemini nunca consume el tiempo reservado para Groq, y si falla por saturación o timeout queda en
+// Presupuesto total de 8 s con AbortController: Gemini hasta 5 s por llamada y Groq hasta 4 s.
+// Gemini nunca consume los 3 s reservados para Groq (con el prompt corto, Groq responde en ~1,5 s), y si falla por saturación o timeout queda en
 // pausa 60 s: mientras tanto las preguntas van directo a Groq sin perder segundos esperando a Gemini.
 // Si el presupuesto se agota, se devuelve 'unavailable' y el flujo sigue con el plan B.
 // Solo se envían esquema, reglas y la pregunta: nunca filas, resultados ni datos de usuarios.
@@ -24,8 +24,10 @@ export type LlmOutcome =
   { status: 'ok'; decision: LlmDecision; provider: LlmProvider } | { status: 'unavailable'; reason: string };
 
 export const LLM_BUDGET_MS = 8_000;
-const GEMINI_TIMEOUT_MS = 3_500;
+// gemini-3-flash-preview respondió en 1 a 3 s en las pruebas; con menos de 5 s se cortaba a menudo.
+const GEMINI_TIMEOUT_MS = 5_000;
 const GROQ_TIMEOUT_MS = 4_000;
+const GROQ_RESERVE_MS = 3_000; // lo que Gemini deja libre en el presupuesto para el respaldo
 const GEMINI_COOLDOWN_MS = 60_000;
 const MIN_CALL_MS = 600; // con menos tiempo que esto no vale la pena empezar otra llamada
 const RETRY_PAUSE_MS = 300;
@@ -302,7 +304,7 @@ async function runChain<T>(system: string, user: string, parse: (text: string) =
   if (geminiPaused) {
     failures.push('gemini: en pausa por una caída reciente');
   } else {
-    const fromGemini = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, true, GROQ_TIMEOUT_MS);
+    const fromGemini = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, true, GROQ_RESERVE_MS);
     if (fromGemini) return fromGemini;
     if (outage) {
       geminiPausedUntil = Date.now() + GEMINI_COOLDOWN_MS;

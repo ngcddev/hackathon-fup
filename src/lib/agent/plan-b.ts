@@ -1,6 +1,8 @@
 // Plan B del agente (AGE-05): preguntas predefinidas con SQL fijo. Funciona sin IA.
 // - Las 4 primeras (demo, levante §12) usan el SQL de supabase/tests/demo_reference.sql sin modificarlo.
-// - Las otras 10 cubren los 5 grupos de KPIs; solo usan vistas de agent y agent.reference_date().
+// - Las demás cubren los 5 grupos de KPIs y las preguntas de la línea base que más fallaban (espera por
+//   turno, segmentos de ingreso, medicamentos agotados, urgencias de ayer); solo usan vistas de agent y
+//   agent.reference_date().
 // - El emparejamiento es determinista: normaliza la pregunta, reconoce sinónimos y puntúa por
 //   palabras clave con un umbral. Por debajo del umbral no hay coincidencia.
 // Sin imports del servidor: se prueba con vitest.
@@ -23,6 +25,9 @@ export interface PlanBEntry {
   variants: string[]; // otras formas de preguntar lo mismo
   keywords: KeywordGroup[];
   exclude?: string[]; // si aparece alguno, la entrada no aplica
+  // Sus palabras clave son tan específicas que, con todas presentes, se responde sin LLM aunque la
+  // pregunta no sea idéntica (el LLM contestaba peor estas preguntas en la línea base).
+  direct?: boolean;
   sql: string;
   views_used: AgentView[];
   buildAnswer: (rows: Row[]) => string;
@@ -64,6 +69,9 @@ const SYNONYMS: [RegExp, string][] = [
   [/\b(criticos?|criticas?|desabastecimiento|agotarse|agotan|por agotarse)\b/g, 'critico'],
   [/\b(cumplimiento|cumplen|cumplidas?|realizadas?)\b/g, 'cumplimiento'],
   [/\b(llegadas?|llegan|llegaron)\b/g, 'llegada'],
+  [/\b(turnos?|noches?|nocturno|nocturna)\b/g, 'turno'],
+  [/\b(regimen(?:es)?)\b/g, 'regimen'],
+  [/\b(agotad[oa]s?|sin existencias|sin stock)\b/g, 'agotado'],
 ];
 
 const STOPWORDS = new Set([
@@ -270,6 +278,48 @@ function answerArrivalsByHour(rows: Row[]): string {
   const peak = rows.reduce((best, r) => (num(r.llegadas) > num(best.llegadas) ? r : best), rows[0]);
   const total = rows.reduce((acc, r) => acc + num(r.llegadas), 0);
   return `La hora con más llegadas a urgencias es las ${fmt(peak.hora, 0)}:00, con ${fmt(peak.llegadas, 0)} de ${fmt(total, 0)} llegadas en los últimos 30 días.`;
+}
+
+function answerWaitByShiftTriage(rows: Row[]): string {
+  if (rows.length === 0) return NO_DATA_ANSWER;
+  const over = rows.filter((r) => num(r.espera_promedio_min) > 60);
+  const top = rows[0];
+  const shift = String(top.turno) === 'noche' ? 'turno noche' : 'turno día';
+  const triage = top.triage_level === 'Sin triage' ? 'sin triage' : `triage ${String(top.triage_level)}`;
+  const worst = `${shift}, ${triage}: ${fmt(top.espera_promedio_min)} min (${fmt(top.ingresos, 0)} ingresos)`;
+  return over.length === 0
+    ? `En los últimos 30 días ninguna combinación de turno y triage supera los 60 minutos de espera; la más alta es ${worst}.`
+    : `En los últimos 30 días ${over.length} de ${rows.length} combinaciones de turno y triage superan los 60 minutos de espera; la más alta es ${worst}. El detalle está en la tabla.`;
+}
+
+function answerTopSegments(rows: Row[]): string {
+  if (rows.length === 0) return NO_DATA_ANSWER;
+  const top = rows[0];
+  return `En todo el histórico, la combinación con más ingresos hospitalarios es ${String(top.grupo_edad)} años, régimen ${String(top.regimen).toLowerCase()}, zona ${String(top.zona).toLowerCase()}, con ${fmt(top.ingresos, 0)} ingresos. Ver el top ${rows.length} en la tabla.`;
+}
+
+// Algunos ítems tienen descripciones de varias líneas: en la frase basta el principio.
+function shortName(name: unknown, max = 60): string {
+  const text = String(name);
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
+function answerOutOfStock(rows: Row[]): string {
+  if (rows.length === 0) return NO_DATA_ANSWER;
+  const soldOut = rows.filter((r) => num(r.stock) <= 0);
+  const low = rows.filter((r) => num(r.stock) > 0);
+  if (soldOut.length === 0) {
+    return (
+      `Ningún medicamento está agotado (stock en 0). Sí hay ${low.length} ${plural(low.length, 'medicamento', 'medicamentos')} con 3 días o menos de inventario; ` +
+      `el más crítico es ${shortName(low[0].nombre)}, con ${fmt(low[0].dias_restantes)} días. ${SIMULATED_NOTE}`
+    );
+  }
+  return `Hay ${soldOut.length} ${plural(soldOut.length, 'medicamento agotado', 'medicamentos agotados')} (stock en 0), por ejemplo ${shortName(soldOut[0].nombre)}. ${SIMULATED_NOTE}`;
+}
+
+function answerEmergencyYesterday(rows: Row[]): string {
+  if (rows.length === 0) return NO_DATA_ANSWER;
+  return `Ayer (${String(rows[0].dia)}) hubo ${fmt(rows[0].ingresos, 0)} ingresos por urgencias.`;
 }
 
 // ------------------------------------------------------------------ Consultas
@@ -549,6 +599,7 @@ LIMIT 200`,
       { any: ['ingreso', 'paciente'], weight: 2 },
       { any: ['mes'], weight: 1 },
     ],
+    exclude: ['regimen', 'zona'],
     sql: `SELECT age_group AS grupo_edad,
        COUNT(*) AS ingresos
 FROM agent.v_admissions
@@ -620,6 +671,96 @@ ORDER BY libres DESC, service ASC
 LIMIT 20`,
     views_used: ['v_bed_occupancy'],
     buildAnswer: answerFreeBeds,
+  },
+  {
+    id: 'emergency_wait_by_shift_triage',
+    question: '¿Cuál es la espera promedio en urgencias por turno y nivel de triage?',
+    variants: ['espera de urgencias entre turno día y noche', 'comparar la espera de urgencias por turno'],
+    keywords: [
+      { any: ['espera'], weight: 3, required: true },
+      { any: ['turno'], weight: 3, required: true },
+      { any: ['urgencias'], weight: 1 },
+      { any: ['triage'], weight: 1 },
+    ],
+    exclude: ['hora'],
+    direct: true,
+    sql: `SELECT shift AS turno,
+       CASE WHEN triage_level IS NULL THEN 'Sin triage' ELSE triage_level::text END AS triage_level,
+       COUNT(*) AS ingresos,
+       ROUND(AVG(wait_minutes), 1) AS espera_promedio_min
+FROM agent.v_emergency_wait_times
+WHERE admitted_at >= agent.reference_date() - 29
+  AND admitted_at < agent.reference_date() + 1
+GROUP BY shift, triage_level
+ORDER BY espera_promedio_min DESC, shift ASC, triage_level ASC
+LIMIT 20`,
+    views_used: ['v_emergency_wait_times'],
+    buildAnswer: answerWaitByShiftTriage,
+  },
+  {
+    id: 'admissions_top_segments',
+    question: '¿Qué grupo de edad, régimen y zona tienen más ingresos hospitalarios?',
+    variants: ['top de ingresos hospitalarios por edad, régimen y zona'],
+    direct: true,
+    keywords: [
+      { any: ['edad'], weight: 3, required: true },
+      { any: ['regimen'], weight: 3, required: true },
+      { any: ['zona'], weight: 2 },
+      { any: ['ingreso', 'paciente'], weight: 2 },
+    ],
+    sql: `SELECT age_group AS grupo_edad,
+       regime AS regimen,
+       zone AS zona,
+       COUNT(*) AS ingresos
+FROM agent.v_admissions
+WHERE admission_class = 'Hospitalario'
+GROUP BY age_group, regime, zone
+ORDER BY ingresos DESC, age_group ASC, regime ASC, zone ASC
+LIMIT 3`,
+    views_used: ['v_admissions'],
+    buildAnswer: answerTopSegments,
+  },
+  {
+    id: 'drugs_out_of_stock',
+    question: '¿Qué medicamentos están agotados?',
+    variants: ['medicamentos sin stock', 'medicamentos agotados o casi agotados'],
+    direct: true,
+    keywords: [
+      { any: ['medicamento'], weight: 3, required: true },
+      { any: ['agotado'], weight: 4, required: true },
+    ],
+    sql: `SELECT item_name AS nombre,
+       current_stock AS stock,
+       days_of_inventory AS dias_restantes,
+       is_simulated
+FROM agent.v_drug_inventory
+WHERE item_type = 'medicamento'
+  AND (current_stock <= 0 OR days_of_inventory <= 3)
+ORDER BY (current_stock <= 0) DESC, days_of_inventory ASC NULLS LAST, item_name ASC
+LIMIT 50`,
+    views_used: ['v_drug_inventory'],
+    buildAnswer: answerOutOfStock,
+  },
+  {
+    id: 'emergency_admissions_yesterday',
+    question: '¿Cuántos ingresos hubo en urgencias ayer?',
+    variants: ['ingresos a urgencias de ayer', 'cuántos pacientes ingresaron a urgencias ayer'],
+    keywords: [
+      { any: ['ingreso'], weight: 3, required: true },
+      { any: ['urgencias'], weight: 3, required: true },
+      { any: ['ayer'], weight: 3, required: true },
+    ],
+    direct: true,
+    // S-04: por urgencias es admission_route = 'Urgencias', no el servicio de la cama.
+    sql: `SELECT (agent.reference_date() - 1)::text AS dia,
+       COUNT(*) AS ingresos
+FROM agent.v_admissions
+WHERE admission_route = 'Urgencias'
+  AND admitted_at >= agent.reference_date() - 1
+  AND admitted_at < agent.reference_date()
+LIMIT 1`,
+    views_used: ['v_admissions'],
+    buildAnswer: answerEmergencyYesterday,
   },
 ];
 
@@ -1002,6 +1143,17 @@ export function scoreEntry(entry: PlanBEntry, tokens: string[]): number {
 export interface PlanBMatch {
   entry: PlanBEntry;
   score: number;
+  // true solo si la pregunta es idéntica a la canónica o a una variante; un puntaje de 1 por
+  // palabras clave NO es exacto.
+  exact: boolean;
+}
+
+// Preguntas sobre el futuro ("¿cuál será la ocupación la próxima semana?"): ninguna vista las responde
+// y una pregunta fija parecida presentaría el dato de hoy como si fuera un pronóstico.
+const FORWARD_LOOKING = /\b(sera|seran|proxim[oa]s?|pronostic\w*|predic\w*|predecir|futur[oa]s?|proyeccion\w*)\b/;
+
+export function isForwardLooking(question: string): boolean {
+  return FORWARD_LOOKING.test(normalizeText(question));
 }
 
 export function matchPlanB(question: string): PlanBMatch | null {
@@ -1009,24 +1161,26 @@ export function matchPlanB(question: string): PlanBMatch | null {
   // Coincidencia exacta con la pregunta canónica o una variante: puntaje máximo.
   for (const entry of PLAN_B) {
     const forms = [entry.question, ...entry.variants].map(normalizeText);
-    if (forms.includes(normalized)) return { entry, score: 1 };
+    if (forms.includes(normalized)) return { entry, score: 1, exact: true };
   }
   // Una enfermedad concreta: ninguna pregunta fija filtra por diagnóstico. Si la pregunta lo dice
   // explícitamente ("diagnóstico de neumonía"), gana la búsqueda; si no ("casos de dengue"), solo
   // se usa cuando ninguna pregunta fija encaja.
+  if (isForwardLooking(question)) return null;
   const diagnosis = diagnosisSearchEntry(question);
-  if (diagnosis && isExplicitDiagnosisQuestion(question)) return { entry: diagnosis, score: MATCH_THRESHOLD };
+  if (diagnosis && isExplicitDiagnosisQuestion(question))
+    return { entry: diagnosis, score: MATCH_THRESHOLD, exact: false };
   // Una población ("niños", "mujeres", "adultos mayores"): ninguna pregunta fija filtra por ella.
   const population = diagnosis ? null : populationEntry(question);
-  if (population) return { entry: population, score: MATCH_THRESHOLD };
+  if (population) return { entry: population, score: MATCH_THRESHOLD, exact: false };
   const tokens = canonicalize(question);
   const scored = PLAN_B.map((entry) => ({ entry, score: scoreEntry(entry, tokens) }))
     .filter((m) => m.score >= MATCH_THRESHOLD)
     .sort((a, b) => b.score - a.score);
-  if (scored.length === 0) return diagnosis ? { entry: diagnosis, score: MATCH_THRESHOLD } : null;
+  if (scored.length === 0) return diagnosis ? { entry: diagnosis, score: MATCH_THRESHOLD, exact: false } : null;
   // Dos candidatos casi empatados: ambigua, no se adivina.
   if (scored.length > 1 && scored[0].score - scored[1].score < AMBIGUITY_MARGIN) return null;
-  return scored[0];
+  return { ...scored[0], exact: false };
 }
 
 // Preguntas que se sugieren cuando no hay coincidencia (AGE-10): las 4 de la demo.
