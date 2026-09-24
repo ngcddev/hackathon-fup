@@ -91,6 +91,7 @@ Errores comunes a todos los endpoints: `UNAUTHENTICATED` (401), `ACCOUNT_DISABLE
 | `PATCH /api/admin/users/{userId}` | `users:manage` | Must |
 | `POST /api/admin/users/{userId}/reset-password` | `users:manage` | Should |
 | `GET /api/admin/logs` | `logs:view` | Could |
+| `GET /api/insights/admissions-series?granularity=&year=&month=&service=` | `dashboard:view` | Should |
 
 Login y logout no son endpoints propios: el navegador usa Supabase Auth directamente.
 
@@ -400,6 +401,25 @@ Permiso: `logs:view` (AUT-15; mock: `mocks/admin-logs.json`).
 
 **Errores:** 400 `VALIDATION_ERROR` (falta `type`, valor desconocido, fechas mal formadas, `limit` fuera de rango).
 
+
+---
+
+### 4.8 `GET /api/insights/admissions-series` (Should)
+
+Permiso: `dashboard:view` (mock: `mocks/admissions-series.json`). Serie de ingresos para el gráfico de barras de la vista Pacientes.
+
+**Query:** `granularity`: `year` (por defecto), `month` o `day`. `year` (1900 a 2100) y `month` (1 a 12) son opcionales; si faltan se usa el año y el mes de `reference_date`. `year` solo aplica a `month` y `day`, y `month` solo a `day`. `service`: nombre exacto del servicio; sin él, todo el hospital.
+
+**Qué cuenta:** pacientes hospitalarios distintos por periodo (`admission_class = 'Hospitalario'`, `COUNT(DISTINCT patient_key)`), igual que Ingresos por servicio. Como un paciente puede ingresar en varios periodos, la suma de los puntos puede superar el total distinto del periodo mayor.
+
+**200** (`AdmissionsSeriesResponse`):
+- `year`: un punto por año, desde el primer año con ingresos hasta el de `reference_date`.
+- `month`: los meses del `year` pedido; en el año de `reference_date` llega hasta su mes.
+- `day`: los días del `month` de `year`; en el mes de `reference_date` llega hasta su día.
+- Los periodos sin ingresos salen con `admissions_count: 0`. Un `year` o `month` posterior a `reference_date` devuelve `points: []`.
+- `available_years`: años con ingresos, para el selector.
+
+**Errores:** 400 `VALIDATION_ERROR` (`granularity` desconocida, `year` o `month` fuera de rango o no enteros).
 ---
 
 ## 5. Fuera de este contrato
