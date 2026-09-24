@@ -292,22 +292,22 @@ export function SummaryView() {
               </Card>
             )}
 
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {tiles(data).map((k) => (
                 <Link
                   key={k.label}
                   href={k.href}
-                  className="flex flex-col gap-1.5 rounded-2xl border border-line bg-white px-[22px] py-5 text-ink no-underline shadow-card hover:border-leaf hover:text-ink"
+                  className="row-span-4 grid min-w-0 grid-rows-subgrid gap-1.5 rounded-2xl border border-line bg-white px-[22px] py-5 text-ink no-underline shadow-card hover:border-leaf hover:text-ink xl:px-4 2xl:px-[22px]"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                     <span className="text-[15px] font-semibold text-muted">{k.label}</span>
                     {k.origin && <OriginBadge origin={k.origin} />}
                   </div>
-                  <div className="text-[32px] font-extrabold sm:text-[40px] leading-[1.1] tracking-tight">
+                  <div className="text-[32px] font-extrabold leading-[1.1] tracking-tight sm:text-[40px] xl:text-[32px] 2xl:text-[40px]">
                     {k.value}
                   </div>
                   <span className="text-sm text-muted">{k.sub}</span>
-                  <span className="mt-1.5 text-sm font-bold">Ver {k.link} →</span>
+                  <span className="mt-1.5 self-end text-sm font-bold">Ver {k.link} →</span>
                 </Link>
               ))}
             </div>

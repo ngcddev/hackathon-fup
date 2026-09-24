@@ -26,7 +26,15 @@ import {
   type SourceBatch,
   type SourcesResponse,
 } from '@/lib/types/api';
-import { normalizeHeader, parseCsv, readFileText, type ParsedFile } from './csv';
+import { parseCsv, readFileText, type ParsedFile } from './csv';
+import { closestTarget, guessMapping } from './mapping';
+
+// Sección del menú donde se importa cada plantilla.
+const TARGET_SECTION: Record<ImportTarget, string> = {
+  bed_inventory: 'Camas',
+  drug_stock: 'Medicamentos',
+  surgery_schedules: 'Cirugías',
+};
 
 const TARGET_LABEL: Record<ImportTarget, string> = {
   bed_inventory: 'Inventario de camas',
@@ -63,16 +71,6 @@ interface Failure {
 }
 
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
-
-function guessMapping(template: readonly string[], headers: string[]): Record<string, string> {
-  const byNorm = new Map(headers.map((h) => [normalizeHeader(h), h]));
-  const out: Record<string, string> = {};
-  for (const col of template) {
-    const hit = byNorm.get(normalizeHeader(col));
-    if (hit) out[col] = hit;
-  }
-  return out;
-}
 
 function toChunks(rows: ImportRow[]): ImportRow[][] {
   const chunks: ImportRow[][] = [];
@@ -142,6 +140,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
   const [fileError, setFileError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [suggested, setSuggested] = useState<Record<string, string>>({});
   const [validation, setValidation] = useState<{
     phase: Phase;
     progress: Progress;
@@ -173,6 +172,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
     setFile(null);
     setFileError('');
     setMapping({});
+    setSuggested({});
     setValidation({ phase: 'idle', progress: { done: 0, total: 0 }, failure: null, batchId: null });
     setApply({ phase: 'idle', result: null, error: '' });
     setCorrecting(null);
@@ -198,7 +198,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
     const table = parseCsv(await readFileText(candidate));
     if (table.length < 2) {
       setFile(null);
-      setFileError('El archivo no tiene filas de datos.');
+      setFileError('El archivo solo tiene encabezados. Agregue al menos una fila de datos debajo y vuelva a subirlo.');
       return;
     }
     if (table.length - 1 > IMPORT_LIMITS.max_rows_per_batch) {
@@ -208,7 +208,9 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
     }
     const [headers, ...rows] = table;
     setFile({ fileName: candidate.name, size: candidate.size, headers, rows });
-    setMapping(guessMapping(template, headers));
+    const guess = guessMapping(target, template, headers);
+    setSuggested(guess);
+    setMapping(guess);
     setValidation({ phase: 'idle', progress: { done: 0, total: 0 }, failure: null, batchId: null });
     setApply({ phase: 'idle', result: null, error: '' });
   };
@@ -221,6 +223,11 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
   };
 
   const mapped = template.every((c) => mapping[c]);
+  const suggestedCount = template.filter((c) => suggested[c]).length;
+  const usingSuggestions = template.every((c) => (mapping[c] ?? '') === (suggested[c] ?? ''));
+  // Si el archivo encaja mejor con otra plantilla, lo más probable es que se esté subiendo en la sección equivocada.
+  const closest = file ? closestTarget(file.headers) : null;
+  const wrongSection = closest && closest.target !== target && closest.matched > suggestedCount ? closest.target : null;
   const importRows = (): ImportRow[] =>
     (file?.rows ?? []).map((cells, i) => {
       const values: Record<string, string | null> = {};
@@ -252,7 +259,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
       let truncated = false;
       for (const [i, chunk] of chunks.entries()) {
         const sent = await apiPost<SendRowsResponse>(`/api/import/batches/${created.batch_id}/rows`, { rows: chunk });
-        invalid = sent.invalid_rows;
+        invalid += sent.invalid_rows; // conteo de cada trozo
         errors.push(...sent.row_errors);
         truncated ||= sent.errors_truncated;
         setValidation((v) => ({ ...v, progress: { done: i + 1, total: chunks.length } }));
@@ -614,6 +621,29 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   Asigne cada columna de la plantilla a una columna del archivo. Las que no existan pueden dejarse
                   vacías; el servidor indicará si son obligatorias.
                 </p>
+                <div
+                  role="status"
+                  className={cn(
+                    'rounded-xl border px-4 py-3 text-[15px]',
+                    suggestedCount === 0 || wrongSection ? 'border-warn-line bg-warn-bg text-warn' : 'border-line bg-canvas text-slate-700',
+                  )}
+                >
+                  {wrongSection ? (
+                    <>
+                      <strong>Este archivo parece de {TARGET_LABEL[wrongSection].toLowerCase()}</strong>, no de{' '}
+                      {TARGET_LABEL[target].toLowerCase()}. Súbalo desde la sección <strong>{TARGET_SECTION[wrongSection]}</strong>.
+                    </>
+                  ) : suggestedCount === 0 ? (
+                    <>
+                      <strong>No reconocimos ninguna columna del archivo.</strong> Asígnelas a mano o use la plantilla del paso 1.
+                    </>
+                  ) : (
+                    <>
+                      Se reconocieron automáticamente <strong>{suggestedCount} de {template.length}</strong> columnas
+                      {suggestedCount < template.length ? '; revise las que quedaron sin asignar.' : '.'}
+                    </>
+                  )}
+                </div>
                 <div className="overflow-hidden rounded-xl border border-line">
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] gap-3 bg-canvas px-[18px] py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">
                     <span>Columna de la plantilla</span>
@@ -622,6 +652,17 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   </div>
                   {template.map((col) => {
                     const value = mapping[col] ?? '';
+                    // Encabezados ya asignados a otra columna: no se ofrecen dos veces.
+                    const taken = new Set(template.filter((c) => c !== col).map((c) => mapping[c]));
+                    const status = !value
+                      ? 'Sin asignar'
+                      : value === EMPTY
+                        ? 'Vacía'
+                        : value === col
+                          ? 'Coincide'
+                          : value === suggested[col]
+                            ? 'Sugerida'
+                            : 'Manual';
                     return (
                       <div
                         key={col}
@@ -639,13 +680,13 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                           <option value="">Seleccione…</option>
                           <option value={EMPTY}>— Dejar vacía —</option>
                           {file.headers.map((h) => (
-                            <option key={h} value={h}>
-                              {h}
+                            <option key={h} value={h} disabled={taken.has(h)}>
+                              {taken.has(h) ? `${h} (en uso)` : h}
                             </option>
                           ))}
                         </select>
                         <span className={cn('text-sm font-bold', value ? 'text-navy' : 'text-warn')}>
-                          {!value ? 'Sin asignar' : value === col ? 'Coincide' : value === EMPTY ? 'Vacía' : 'Asignada'}
+                          {status}
                         </span>
                       </div>
                     );
@@ -657,10 +698,11 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMapping(guessMapping(template, file.headers))}
-                    className="h-12 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-5 text-base font-bold"
+                    disabled={usingSuggestions}
+                    onClick={() => setMapping(suggested)}
+                    className="h-12 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-5 text-base font-bold disabled:cursor-default disabled:opacity-40"
                   >
-                    Usar sugerencias
+                    Restablecer sugerencias
                   </button>
                   <button
                     type="button"
