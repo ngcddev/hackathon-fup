@@ -1,5 +1,7 @@
-import type { CriticalDrug, KpiAlert } from '@/lib/types/api';
+import type { CriticalDrug, EmergencyWaitCard, KpiAlert } from '@/lib/types/api';
 import type { OccupancyRow } from '@/lib/queries/kpis/occupancy';
+import type { EmergencyWaitShiftRow } from '@/lib/queries/kpis/emergency-wait';
+import { buildEmergencyWaitAlerts } from './emergency-wait';
 import { buildOccupancyAlerts, type RankedAlert } from './occupancy';
 import { buildStockoutAlerts } from './stockout';
 
@@ -20,8 +22,17 @@ function compare(a: RankedAlert, b: RankedAlert): number {
   return a.alert.type === 'occupancy' ? b.gravity - a.gravity : a.gravity - b.gravity;
 }
 
-export function buildAlerts(occupancyRows: OccupancyRow[], drugRiskRows: CriticalDrug[]): KpiAlert[] {
-  return [...buildOccupancyAlerts(occupancyRows), ...buildStockoutAlerts(drugRiskRows)]
+export function buildAlerts(
+  occupancyRows: OccupancyRow[],
+  drugRiskRows: CriticalDrug[],
+  waitCard: EmergencyWaitCard,
+  waitByShift: EmergencyWaitShiftRow[],
+): KpiAlert[] {
+  return [
+    ...buildOccupancyAlerts(occupancyRows),
+    ...buildStockoutAlerts(drugRiskRows),
+    ...buildEmergencyWaitAlerts(waitCard, waitByShift),
+  ]
     .sort(compare)
     .map((ranked) => ranked.alert);
 }

@@ -4,18 +4,18 @@ import type { KpisResponse } from '@/lib/types/api';
 import { buildCriticalDrugsCard, getDrugRiskRows } from './critical-drugs';
 import { getDemandCard } from './demand';
 import { getDrugRotationCard } from './drug-rotation';
-import { getEmergencyWaitCard } from './emergency-wait';
+import { getEmergencyWaitData } from './emergency-wait';
 import { buildOccupancyCard, getOccupancySnapshot, listServices } from './occupancy';
 import { getSurgeriesCard } from './surgeries';
 
 // Orquesta todas las consultas en paralelo. `service` filtra solo las tarjetas con scope
 // 'service'; las alertas son siempre de todo el hospital (DAS-10, ALE-03).
 export async function getKpis(service: string | null): Promise<KpisResponse> {
-  const [snapshot, drugRows, emergency_wait, surgeries, demand, drug_rotation, services] =
+  const [snapshot, drugRows, waitData, surgeries, demand, drug_rotation, services] =
     await Promise.all([
       getOccupancySnapshot(),
       getDrugRiskRows(),
-      getEmergencyWaitCard(),
+      getEmergencyWaitData(),
       getSurgeriesCard(),
       getDemandCard(service),
       getDrugRotationCard(),
@@ -28,12 +28,12 @@ export async function getKpis(service: string | null): Promise<KpisResponse> {
 
   return {
     occupancy: buildOccupancyCard(snapshot, service),
-    emergency_wait,
+    emergency_wait: waitData.card,
     critical_drugs: buildCriticalDrugsCard(drugRows),
     surgeries,
     demand,
     drug_rotation,
-    alerts: buildAlerts(snapshot.rows, drugRows),
+    alerts: buildAlerts(snapshot.rows, drugRows, waitData.card, waitData.by_shift),
     reference_date: snapshot.day,
     generated_at: new Date().toISOString(),
     service_filter: service,
