@@ -328,6 +328,59 @@ async function checkArrivals() {
   for (const s of real.top_slots) console.log(`      ${s.recommendation} (${s.avg_arrivals} llegadas por franja; promedio ${real.avg_arrivals_per_slot})`);
 }
 
+async function checkWaitRootCause() {
+  const { buildWaitRootCause, getWaitRootCause, MIN_SEGMENT_VOLUME } = await import('@/lib/queries/insights/wait-root-cause');
+  const { queryAsAppBackend } = await import('@/lib/db');
+  const periods = { current: { start: '2026-09-15', end: '2026-09-21' }, baseline: { start: '2026-08-18', end: '2026-09-14' } };
+  type Row = { period: 'current' | 'baseline'; shift: 'dia' | 'noche'; weekday: number; triage_level: number | null; n: number; total_minutes: number };
+  const seg = (shift: 'dia' | 'noche', weekday: number, triage_level: number | null, cur: [number, number], base: [number, number]): Row[] => [
+    { period: 'current', shift, weekday, triage_level, n: cur[0], total_minutes: cur[0] * cur[1] },
+    { period: 'baseline', shift, weekday, triage_level, n: base[0], total_minutes: base[0] * base[1] },
+  ];
+
+  // Aumento: triage 3, noche, martes pasa de 51 a 74 min con 20 ingresos. El segmento de triage 1
+  // (9 ingresos, salto de 10 a 100 min) NO se reporta por tener menos de 10.
+  const up = buildWaitRootCause([...seg('noche', 2, 3, [20, 74], [40, 51]), ...seg('dia', 1, 2, [20, 30], [40, 30]), ...seg('noche', 3, 1, [9, 100], [50, 10])], periods, '2026-09-21');
+  report('D7 (sintético) el segmento principal es triage 3 / noche / martes, sin el de 9 ingresos', up.top_segments.length === 2 && up.top_segments[0].triage_level === 3 && up.top_segments[0].shift === 'noche' && up.top_segments[0].weekday === 2 && !up.top_segments.some((s) => s.triage_level === 1), JSON.stringify(up.top_segments.map((s) => [s.triage_level, s.shift, s.weekday])));
+  report('D7 (sintético) espera 74 vs 51, cambio 23 y aporte 23 × 20 = 460', up.top_segments[0].current_avg_wait_minutes === 74 && up.top_segments[0].baseline_avg_wait_minutes === 51 && up.top_segments[0].change_minutes === 23 && up.top_segments[0].contribution_minutes === 460);
+  report('D7 (sintético) frase de aumento', up.summary === 'El aumento de la espera se concentra en triage 3 del turno noche de los martes: 74 min frente a 51 min en las 4 semanas anteriores.', up.summary);
+  const edge = buildWaitRootCause(seg('noche', 2, 3, [MIN_SEGMENT_VOLUME, 74], [MIN_SEGMENT_VOLUME, 51]), periods, '2026-09-21');
+  const below = buildWaitRootCause(seg('noche', 2, 3, [MIN_SEGMENT_VOLUME - 1, 74], [40, 51]), periods, '2026-09-21');
+  report('D7 (sintético) 10 ingresos se reportan y 9 no', edge.top_segments.length === 1 && below.top_segments.length === 0);
+  const flat = buildWaitRootCause(seg('dia', 1, 3, [50, 105], [100, 100]), periods, '2026-09-21');
+  report('D7 (sintético) un cambio de 5 % se reporta como sin cambio relevante', flat.summary.startsWith('La espera promedio no cambió de forma relevante') && flat.overall.change_pct === 5, flat.summary);
+  const down = buildWaitRootCause(seg('dia', 1, 3, [50, 60], [100, 80]), periods, '2026-09-21');
+  report('D7 (sintético) si bajó, la frase dice que bajó', down.summary.startsWith('La espera bajó 25 %') && down.top_segments[0].contribution_minutes === -1000, down.summary);
+
+  const real = await getWaitRootCause();
+  const [truth] = await queryAsAppBackend<{ cur_n: number; cur_avg: number; base_n: number; base_avg: number }>(
+    `SELECT COUNT(*) FILTER (WHERE admitted_at >= r.d - 6)::int AS cur_n,
+            ROUND(AVG(wait_minutes) FILTER (WHERE admitted_at >= r.d - 6), 1)::float8 AS cur_avg,
+            COUNT(*) FILTER (WHERE admitted_at < r.d - 6)::int AS base_n,
+            ROUND(AVG(wait_minutes) FILTER (WHERE admitted_at < r.d - 6), 1)::float8 AS base_avg
+       FROM agent.v_emergency_wait_times w CROSS JOIN (SELECT agent.reference_date() AS d) r
+      WHERE w.admitted_at >= r.d - 34 AND w.admitted_at < r.d + 1`,
+  );
+  report('D7 la espera global coincide con DAS-02 y con el cálculo independiente', real.overall.current_avg_wait_minutes === truth.cur_avg && real.overall.current_volume === truth.cur_n && real.overall.baseline_avg_wait_minutes === truth.base_avg && real.overall.baseline_volume === truth.base_n && truth.cur_avg === 62.1 && truth.cur_n === 796, JSON.stringify(real.overall));
+  report('D7 periodos: última semana y 28 días anteriores', real.current_period.start === '2026-09-15' && real.current_period.end === '2026-09-21' && real.baseline_period.start === '2026-08-18' && real.baseline_period.end === '2026-09-14');
+  const t = real.top_segments[0];
+  const [check] = await queryAsAppBackend<{ cur_avg: number; base_avg: number; cur_n: number }>(
+    `SELECT ROUND(AVG(wait_minutes) FILTER (WHERE admitted_at >= r.d - 6), 1)::float8 AS cur_avg,
+            ROUND(AVG(wait_minutes) FILTER (WHERE admitted_at < r.d - 6), 1)::float8 AS base_avg,
+            COUNT(*) FILTER (WHERE admitted_at >= r.d - 6)::int AS cur_n
+       FROM agent.v_emergency_wait_times w CROSS JOIN (SELECT agent.reference_date() AS d) r
+      WHERE w.admitted_at >= r.d - 34 AND w.admitted_at < r.d + 1
+        AND w.shift = $1 AND w.weekday = $2 AND w.triage_level IS NOT DISTINCT FROM $3`,
+    [t.shift, t.weekday, t.triage_level],
+  );
+  report('D7 el segmento principal coincide con el cálculo independiente', check.cur_avg === t.current_avg_wait_minutes && check.base_avg === t.baseline_avg_wait_minutes && check.cur_n === t.current_volume, `${t.weekday_name} ${t.shift} triage ${t.triage_level}: ${check.cur_avg} vs ${check.base_avg}`);
+  report('D7 hasta 3 segmentos, ordenados por aporte y con al menos 10 ingresos', real.top_segments.length <= 3 && real.top_segments.length > 0 && real.top_segments.every((s, i, a) => s.current_volume >= 10 && s.baseline_volume >= 10 && (i === 0 || Math.abs(a[i - 1].contribution_minutes) >= Math.abs(s.contribution_minutes))));
+  report('D7 aporte = cambio × volumen actual', real.top_segments.every((s) => Math.abs(s.contribution_minutes - s.change_minutes * s.current_volume) < s.current_volume * 0.1 + 0.1));
+  report('D7 la frase es coherente con el sentido del cambio', (real.overall.change_pct ?? 0) < -5 ? real.summary.startsWith('La espera bajó') : (real.overall.change_pct ?? 0) > 5 ? real.summary.startsWith('El aumento') : real.summary.startsWith('La espera promedio no cambió'), real.summary);
+  report('D7 sin datos identificables', leaks(real).length === 0);
+  console.log(`      ${real.summary}`);
+}
+
 async function main() {
   await checkEmergencyWaitAlerts();
   await checkDepletionForecast();
@@ -337,6 +390,7 @@ async function main() {
   await checkRevert();
   await checkRevertErrors(batchesBefore);
   await checkArrivals();
+  await checkWaitRootCause();
   process.exit(failures === 0 ? 0 : 1);
 }
 
