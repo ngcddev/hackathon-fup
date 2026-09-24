@@ -3,6 +3,11 @@ import { fmtNumber } from './format';
 import { INVENTORY_THRESHOLDS } from './thresholds';
 import type { RankedAlert } from './occupancy';
 
+// D2: unidades que faltan para cubrir `days` días de consumo (nunca negativo).
+export function suggestedOrderQuantity(drug: CriticalDrug, days: number): number {
+  return Math.max(Math.ceil(drug.avg_daily_consumption * days - drug.current_stock), 0);
+}
+
 // ALE-01: una alerta crítica por medicamento con menos de 5 días; los de 5 a 10 días van
 // en una sola advertencia agrupada (el contrato no tiene campo de detalle: la lista va en message).
 export function buildStockoutAlerts(rows: CriticalDrug[]): RankedAlert[] {
@@ -11,7 +16,7 @@ export function buildStockoutAlerts(rows: CriticalDrug[]): RankedAlert[] {
   const warning = rows.filter((r) => r.days_of_inventory >= critical_days);
 
   const result: RankedAlert[] = critical.map((drug) => {
-    const suggested = Math.ceil(drug.avg_daily_consumption * restock_target_days - drug.current_stock);
+    const suggested = suggestedOrderQuantity(drug, restock_target_days);
     return {
       gravity: drug.days_of_inventory,
       alert: {
@@ -22,8 +27,9 @@ export function buildStockoutAlerts(rows: CriticalDrug[]): RankedAlert[] {
         message:
           `Quedan ${fmtNumber(drug.days_of_inventory)} días de inventario ` +
           `(stock ${fmtNumber(drug.current_stock, 0)}, consumo ${fmtNumber(drug.avg_daily_consumption, 2)} por día). ` +
+          (drug.estimated_stockout_date ? `Quiebre estimado el ${drug.estimated_stockout_date}. ` : '') +
           'Inventario simulado.',
-        recommendation: `Pedir ${fmtNumber(Math.max(suggested, 0), 0)} unidades para cubrir ${restock_target_days} días de consumo.`,
+        recommendation: `Pedir ${fmtNumber(suggested, 0)} unidades para cubrir ${restock_target_days} días de consumo.`,
         is_simulated: drug.is_simulated,
       },
     };
