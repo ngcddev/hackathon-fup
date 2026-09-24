@@ -232,10 +232,10 @@ async function checkRevert() {
       fn.proconfig.join(' '),
     );
     const adminId = '11111111-1111-4111-8111-111111111111';
-    const pharmacyId = '22222222-2222-4222-8222-222222222222';
+    const medicId = '22222222-2222-4222-8222-222222222222';
     for (const [id, role] of [
       [adminId, 'admin'],
-      [pharmacyId, 'pharmacy'],
+      [medicId, 'medic'],
     ]) {
       await q('INSERT INTO auth.users (id, email) VALUES ($1, $2)', [id, `${role}.prueba@example.invalid`]);
       await q('INSERT INTO core.user_profiles (user_id, full_name, role) VALUES ($1, $2, $3)', [
@@ -305,10 +305,7 @@ async function checkRevert() {
       'IMP-08 un lote ya revertido no se revierte de nuevo (55000)',
       await failsWith('55000', () => revert(stockBatch)),
     );
-    report(
-      'IMP-08 un no admin no puede revertir (42501)',
-      await failsWith('42501', () => revert(stockBatch, pharmacyId)),
-    );
+    report('IMP-08 un no admin no puede revertir (42501)', await failsWith('42501', () => revert(stockBatch, medicId)));
     report(
       'IMP-08 un lote inexistente responde P0002',
       await failsWith('P0002', () => revert('33333333-3333-4333-8333-333333333333')),

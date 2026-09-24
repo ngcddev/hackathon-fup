@@ -3,7 +3,7 @@
 
 import type { ImportTarget } from '@/lib/types/api';
 
-export const ROLES = ['director', 'service_head', 'administrative', 'pharmacy', 'admin'] as const;
+export const ROLES = ['director', 'service_head', 'medic', 'admin'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const PERMISSIONS = [
@@ -28,9 +28,9 @@ export const PERMISSION_MATRIX: Record<Permission, readonly Role[]> = {
   'summary:view': ALL_ROLES,
   'agent:query': ALL_ROLES,
   'sources:view': ALL_ROLES,
-  'import:bed_inventory': ['administrative', 'admin'],
-  'import:surgery_schedules': ['administrative', 'admin'],
-  'import:drug_stock': ['pharmacy', 'admin'],
+  'import:bed_inventory': ['admin'],
+  'import:surgery_schedules': ['admin'],
+  'import:drug_stock': ['admin'],
   'import:his_tables': ['admin'],
   'import:revert': ['admin'],
   'users:manage': ['admin'],
