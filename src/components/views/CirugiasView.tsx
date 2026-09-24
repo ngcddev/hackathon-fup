@@ -72,7 +72,7 @@ function Estado({ data }: { data: KpisResponse }) {
   const months = s.by_month;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <Stat
           label="Cumplimiento quirúrgico"
           value={`${fmtNum(s.compliance_pct)} %`}
@@ -84,7 +84,7 @@ function Estado({ data }: { data: KpisResponse }) {
       </div>
 
       {months.length > 0 && (
-        <Card className="flex flex-col gap-[18px] p-6">
+        <Card className="flex flex-col gap-[18px] p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="m-0 text-[21px] font-bold">Programadas vs. realizadas por mes</h3>
             <div className="flex flex-wrap gap-[18px] text-sm text-slate-700">

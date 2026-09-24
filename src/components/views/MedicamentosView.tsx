@@ -48,7 +48,7 @@ const columns: Column<CriticalDrug>[] = [
 function Rotation({ title, items }: { title: string; items: DrugRotationItem[] }) {
   const max = Math.max(1, ...items.map((i) => i.total_quantity));
   return (
-    <Card className="flex flex-col gap-3 p-6">
+    <Card className="flex flex-col gap-3 p-4 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="m-0 text-[21px] font-bold">{title}</h3>
         <span className="text-sm text-muted">unidades dispensadas</span>
@@ -73,7 +73,7 @@ function Estado({ data }: { data: KpisResponse }) {
   const photo = drugs.items[0]?.stock_date;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <Stat
           label={`Stock crítico (< ${drugs.threshold_days} días)`}
           value={fmtInt(drugs.count)}

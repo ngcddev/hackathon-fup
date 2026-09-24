@@ -96,7 +96,7 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
 
   return (
     <div className="flex min-h-[calc(100vh-190px)] flex-wrap items-stretch gap-5">
-      <aside className="flex min-w-[220px] flex-[0_1_260px] flex-col gap-2.5 rounded-2xl border border-line bg-white p-4 shadow-card">
+      <aside className="flex min-w-0 flex-[1_1_100%] flex-col sm:min-w-[220px] sm:flex-[0_1_260px] gap-2.5 rounded-2xl border border-line bg-white p-4 shadow-card">
         <button
           type="button"
           onClick={() => {
@@ -121,8 +121,8 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
         ))}
       </aside>
 
-      <section className="flex max-h-[calc(100vh-190px)] min-h-[560px] min-w-0 flex-[1_1_560px] flex-col rounded-2xl border border-line bg-white shadow-card">
-        <div ref={scroller} className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <section className="flex max-h-[calc(100vh-190px)] min-h-[420px] min-w-0 flex-[1_1_560px] sm:min-h-[560px] flex-col rounded-2xl border border-line bg-white shadow-card">
+        <div ref={scroller} className="flex flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6">
           {messages.length === 0 && (
             <div className="m-auto flex max-w-[560px] flex-col items-center gap-2.5 py-10 text-center">
               <Icon name="agente" size={40} strokeWidth={1.5} className="text-navy" />

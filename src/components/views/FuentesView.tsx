@@ -82,10 +82,10 @@ export function FuentesView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <Stat
           label="Última carga aplicada"
-          value={<span className="text-[34px] leading-tight">{data.last_load_at ? fmtDateTime(data.last_load_at) : '—'}</span>}
+          value={<span className="text-[26px] leading-tight sm:text-[34px]">{data.last_load_at ? fmtDateTime(data.last_load_at) : '—'}</span>}
           sub={applied ? `${applied.target_table} · ${applied.imported_by?.full_name ?? 'Sistema'}` : undefined}
         />
         <Stat label="Datos simulados" value={fmtPct(data.simulated_pct)} sub={`${fmtInt(simulatedRows)} de ${fmtInt(totalRows)} filas`} origin="Simulado" />
@@ -94,7 +94,7 @@ export function FuentesView() {
 
       <section className="flex flex-col gap-3.5">
         <h3 className="m-0 text-[21px] font-bold">Tablas cargadas</h3>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] gap-3.5">
           {data.tables.map((t) => (
             <div key={t.table} className="flex flex-col gap-1.5 rounded-xl border border-line bg-white px-[18px] py-4">
               <span className="font-mono text-sm font-medium">{t.table}</span>

@@ -100,7 +100,7 @@ export function DataTable<Row>({
     <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4">
         {title && <h3 className="m-0 mr-3 text-xl font-bold">{title}</h3>}
-        <div className="relative min-w-[220px] max-w-[380px] flex-1">
+        <div className="relative min-w-[min(100%,220px)] max-w-[380px] flex-1">
           <Icon name="search" size={18} className="absolute left-3.5 top-3 text-muted" />
           <input
             value={query}

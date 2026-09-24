@@ -48,7 +48,7 @@ export function LoginForm() {
               <span className="font-medium text-muted">Popayán, Cauca</span>
             </div>
           </div>
-          <h1 className="m-0 mx-auto max-w-[460px] px-2 pb-2 text-center text-4xl font-extrabold leading-tight tracking-tight text-white [text-shadow:0_2px_4px_rgba(15,23,42,0.6),0_4px_24px_rgba(15,23,42,0.55)] text-balance">
+          <h1 className="m-0 mx-auto max-w-[460px] px-2 pb-2 text-center text-3xl font-extrabold sm:text-4xl leading-tight tracking-tight text-white [text-shadow:0_2px_4px_rgba(15,23,42,0.6),0_4px_24px_rgba(15,23,42,0.55)] text-balance">
             ¡Pensando en ti, doy lo mejor de mi!
           </h1>
         </div>

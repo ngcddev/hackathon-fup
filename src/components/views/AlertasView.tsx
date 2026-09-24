@@ -12,9 +12,12 @@ import { ALERT_ROUTE, ALERT_TYPE_LABEL } from './alerts-meta';
 
 type Filter = 'all' | AlertType;
 const FILTERS: Filter[] = ['all', 'stockout', 'occupancy', 'emergency_wait', 'surgery_compliance'];
+// Alertas visibles antes del desplegable; el resto se muestra al expandirlo.
+const VISIBLE_ALERTS = 2;
 
 export function AlertasView() {
   const [filter, setFilter] = useState<Filter>('all');
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <KpiGate label="las alertas">
@@ -23,6 +26,7 @@ export function AlertasView() {
         const list = data.alerts.filter((a) => filter === 'all' || a.type === filter);
         const critical = list.filter((a) => a.severity === 'critical').length;
         const warnings = list.length - critical;
+        const hidden = list.length - VISIBLE_ALERTS;
         return (
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -34,7 +38,10 @@ export function AlertasView() {
                     key={f}
                     type="button"
                     aria-pressed={on}
-                    onClick={() => setFilter(f)}
+                    onClick={() => {
+                      setFilter(f);
+                      setExpanded(false);
+                    }}
                     className={cn(
                       'h-11 cursor-pointer rounded-full border-[1.5px] px-[18px] text-[15px] font-bold',
                       on ? 'border-navy bg-navy text-white' : 'border-slate-300 bg-white text-navy',
@@ -60,13 +67,13 @@ export function AlertasView() {
               <EmptyState title="No hay alertas activas">Los indicadores están dentro de los umbrales definidos.</EmptyState>
             ) : (
               <div className="flex flex-col gap-3">
-                {list.map((a) => {
+                {list.slice(0, expanded ? list.length : VISIBLE_ALERTS).map((a) => {
                   const route = ALERT_ROUTE[a.type];
                   return (
                     <article
                       key={a.id}
                       className={cn(
-                        'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl border bg-white px-6 py-5',
+                        'grid grid-cols-1 items-center gap-4 rounded-xl border bg-white px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6 sm:py-5',
                         a.severity === 'critical' ? 'border-danger-line' : 'border-warn-line',
                       )}
                     >
@@ -77,7 +84,7 @@ export function AlertasView() {
                           {a.is_simulated && <OriginBadge origin="Simulado" />}
                         </div>
                         <h3 className="m-0 text-xl font-bold">{a.title}</h3>
-                        <div className={cn('font-extrabold tracking-tight', a.message.length > 70 ? 'text-lg' : 'text-[26px]')}>{a.message}</div>
+                        <div className={cn('font-extrabold tracking-tight', a.message.length > 70 ? 'text-lg' : 'text-[22px] sm:text-[26px]')}>{a.message}</div>
                         <div className="text-base text-slate-700">
                           <strong>Acción recomendada:</strong> {a.recommendation}
                         </div>
@@ -88,6 +95,19 @@ export function AlertasView() {
                     </article>
                   );
                 })}
+                {hidden > 0 && (
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setExpanded((v) => !v)}
+                    className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300 bg-white text-[15px] font-bold text-navy"
+                  >
+                    {expanded ? 'Ocultar alertas' : hidden === 1 ? 'Ver 1 alerta más' : `Ver ${hidden} alertas más`}
+                    <span aria-hidden className={cn('inline-block transition-transform', expanded && 'rotate-180')}>
+                      ▾
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </div>

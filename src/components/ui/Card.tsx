@@ -39,12 +39,12 @@ const TONE = {
 export function Stat({ label, value, sub, origin, tone = 'default', children }: StatProps) {
   const t = TONE[tone];
   return (
-    <div className={cn('flex flex-col gap-1.5 rounded-2xl border bg-white px-6 py-[22px]', t.border, t.shadow)}>
+    <div className={cn('flex flex-col gap-1.5 rounded-2xl border bg-white px-5 py-[22px] sm:px-6', t.border, t.shadow)}>
       <div className="flex items-center justify-between gap-2">
         <span className={cn('text-[15px]', t.label)}>{label}</span>
         {origin && <OriginBadge origin={origin} />}
       </div>
-      <div className="text-[44px] font-extrabold leading-[1.1] tracking-tight">{value}</div>
+      <div className="text-[34px] font-extrabold sm:text-[44px] leading-[1.1] tracking-tight">{value}</div>
       {sub && <span className="text-[15px] text-muted">{sub}</span>}
       {children}
     </div>
