@@ -146,7 +146,7 @@ function geminiText(json: unknown): string | null {
   return text === '' ? null : text;
 }
 
-async function callGemini(question: string, timeoutMs: number): Promise<string> {
+async function callGemini(system: string, user: string, timeoutMs: number): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL;
   if (!key || !model) throw new ProviderError('sin GEMINI_API_KEY o GEMINI_MODEL');
@@ -154,8 +154,8 @@ async function callGemini(question: string, timeoutMs: number): Promise<string> 
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     { 'x-goog-api-key': key },
     {
-      systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
-      contents: [{ role: 'user', parts: [{ text: buildUserMessage(question) }] }],
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: user }] }],
       generationConfig: {
         temperature: 0,
         responseMimeType: 'application/json',
@@ -171,9 +171,13 @@ async function callGemini(question: string, timeoutMs: number): Promise<string> 
   return text;
 }
 
-async function callGroq(question: string, timeoutMs: number): Promise<string> {
+async function callGroq(
+  system: string,
+  user: string,
+  timeoutMs: number,
+  model = process.env.GROQ_MODEL,
+): Promise<string> {
   const key = process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL;
   if (!key || !model) throw new ProviderError('sin GROQ_API_KEY o GROQ_MODEL');
   const { status, json, headers } = await postJson(
     'https://api.groq.com/openai/v1/chat/completions',
@@ -181,13 +185,14 @@ async function callGroq(question: string, timeoutMs: number): Promise<string> {
     {
       model,
       messages: [
-        { role: 'system', content: buildSystemPrompt() },
-        { role: 'user', content: buildUserMessage(question) },
+        { role: 'system', content: system },
+        { role: 'user', content: user },
       ],
       temperature: 0,
       response_format: { type: 'json_object' },
       max_completion_tokens: MAX_OUTPUT_TOKENS,
-      reasoning_effort: 'low',
+      // Solo los modelos de razonamiento (gpt-oss) aceptan reasoning_effort; los demás (p. ej. llama) lo rechazan.
+      ...(model.includes('gpt-oss') ? { reasoning_effort: 'low' } : {}),
     },
     timeoutMs,
   );
@@ -248,14 +253,14 @@ export function clearDecisionCache(): void {
   cache.clear();
 }
 
-// ------------------------------------------------------------------ Punto de entrada
+// ------------------------------------------------------------------ Cadena de proveedores
 
-export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> {
-  if (!isLlmEnabled()) return { status: 'unavailable', reason: 'AGENT_LLM_ENABLED no está activo' };
+export type LlmResult<T> =
+  { status: 'ok'; value: T; provider: LlmProvider } | { status: 'unavailable'; reason: string };
 
-  const cached = cachedOutcome(question);
-  if (cached) return cached;
-
+// Gemini → Groq dentro del presupuesto de 8 s, con la pausa de Gemini tras una caída.
+// parse convierte el texto del proveedor; si devuelve null, cuenta como JSON inválido.
+async function runChain<T>(system: string, user: string, parse: (text: string) => T | null): Promise<LlmResult<T>> {
   const deadline = Date.now() + LLM_BUDGET_MS;
   const remaining = () => deadline - Date.now();
   const failures: string[] = [];
@@ -265,11 +270,11 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
   // reserveMs: tiempo del presupuesto que este proveedor no puede usar (se guarda para el siguiente).
   async function attempt(
     provider: LlmProvider,
-    call: (question: string, timeoutMs: number) => Promise<string>,
+    call: (system: string, user: string, timeoutMs: number) => Promise<string>,
     capMs: number,
     canRetry: boolean,
     reserveMs = 0,
-  ): Promise<LlmOutcome | null> {
+  ): Promise<LlmResult<T> | null> {
     outage = false;
     for (let tries = 0; tries < (canRetry ? 2 : 1); tries++) {
       const timeoutMs = Math.min(capMs, remaining() - reserveMs);
@@ -278,9 +283,8 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
         return null;
       }
       try {
-        const text = await call(question, timeoutMs);
-        const decision = parseDecision(text);
-        if (decision) return { status: 'ok', decision, provider };
+        const value = parse(await call(system, user, timeoutMs));
+        if (value !== null) return { status: 'ok', value, provider };
         failures.push(`${provider}: JSON inválido`);
         return null;
       } catch (error) {
@@ -294,7 +298,8 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
     return null;
   }
 
-  if (Date.now() < geminiPausedUntil) {
+  const geminiPaused = Date.now() < geminiPausedUntil;
+  if (geminiPaused) {
     failures.push('gemini: en pausa por una caída reciente');
   } else {
     const fromGemini = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, true, GROQ_TIMEOUT_MS);
@@ -306,5 +311,46 @@ export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> 
   }
   const fromGroq = await attempt('groq', callGroq, GROQ_TIMEOUT_MS, false);
   if (fromGroq) return fromGroq;
+
+  // Groq sin cuota (429): cada modelo de Groq tiene su propio límite por minuto, así que se prueba
+  // el modelo de respaldo si está configurado (GROQ_FALLBACK_MODEL).
+  const fallbackModel = process.env.GROQ_FALLBACK_MODEL;
+  if (fallbackModel && failures.at(-1) === 'groq: HTTP 429') {
+    const fromFallback = await attempt('groq', (s, u, t) => callGroq(s, u, t, fallbackModel), GROQ_TIMEOUT_MS, false);
+    if (fromFallback) return fromFallback;
+  }
+
+  // Si Groq también falló y Gemini estaba en pausa, se le da una última oportunidad con el tiempo
+  // que quede: la pausa ahorra segundos cuando Groq responde, pero no debe dejar al usuario sin IA.
+  if (geminiPaused) {
+    const lastChance = await attempt('gemini', callGemini, GEMINI_TIMEOUT_MS, false);
+    if (lastChance) {
+      geminiPausedUntil = 0;
+      return lastChance;
+    }
+  }
   return { status: 'unavailable', reason: failures.join('; ') };
+}
+
+// ------------------------------------------------------------------ Puntos de entrada
+
+export async function generateSqlWithLlm(question: string): Promise<LlmOutcome> {
+  if (!isLlmEnabled()) return { status: 'unavailable', reason: 'AGENT_LLM_ENABLED no está activo' };
+
+  const cached = cachedOutcome(question);
+  if (cached) return cached;
+
+  const result = await runChain(buildSystemPrompt(), buildUserMessage(question), parseDecision);
+  return result.status === 'ok' ? { status: 'ok', decision: result.value, provider: result.provider } : result;
+}
+
+// Para otros usos del LLM (por ejemplo, sugerencias de alertas): mismo proveedor, presupuesto y pausa.
+// Solo deben llegar el sistema, la instrucción y datos agregados; nunca filas de pacientes (RNF-03).
+export async function completeJsonWithLlm<T>(
+  system: string,
+  user: string,
+  parse: (text: string) => T | null,
+): Promise<LlmResult<T>> {
+  if (!isLlmEnabled()) return { status: 'unavailable', reason: 'AGENT_LLM_ENABLED no está activo' };
+  return runChain(system, user, parse);
 }

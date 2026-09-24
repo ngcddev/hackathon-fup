@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/States';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/components/ui/format';
 import type { AlertType } from '@/lib/types/api';
+import { SuggestButton, SuggestionPanel, useAlertSuggestions } from './AlertSuggestion';
 import { ALERT_ROUTE, ALERT_TYPE_LABEL } from './alerts-meta';
 
 type Filter = 'all' | AlertType;
@@ -18,6 +19,7 @@ const VISIBLE_ALERTS = 2;
 export function AlertsView() {
   const [filter, setFilter] = useState<Filter>('all');
   const [expanded, setExpanded] = useState(false);
+  const suggestions = useAlertSuggestions();
 
   return (
     <KpiGate label="las alertas">
@@ -71,6 +73,7 @@ export function AlertsView() {
               <div className="flex flex-col gap-3">
                 {list.slice(0, expanded ? list.length : VISIBLE_ALERTS).map((a) => {
                   const route = ALERT_ROUTE[a.type];
+                  const suggestion = suggestions.get(a.id);
                   return (
                     <article
                       key={a.id}
@@ -97,10 +100,14 @@ export function AlertsView() {
                         <div className="text-base text-slate-700">
                           <strong>Acción recomendada:</strong> {a.recommendation}
                         </div>
+                        <SuggestButton alertId={a.id} state={suggestion} onClick={() => suggestions.toggle(a.id)} />
                       </div>
                       <Link href={route.href} className="whitespace-nowrap text-[15px] font-bold">
                         Ver en {route.label} →
                       </Link>
+                      {suggestion?.open && (
+                        <SuggestionPanel alert={a} state={suggestion} onRetry={() => void suggestions.retry(a.id)} />
+                      )}
                     </article>
                   );
                 })}

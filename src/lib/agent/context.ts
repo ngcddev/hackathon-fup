@@ -5,7 +5,7 @@
 //   follow_up_questions  preguntas relacionadas para seguir explorando
 // Sin imports del servidor: se prueba con vitest.
 
-import type { AgentView } from '../types/api';
+import type { AgentView, AppModule } from '../types/api';
 import { PLAN_B } from './plan-b';
 import { formatNumber, normalizeText } from './text';
 
@@ -203,4 +203,23 @@ export function followUpQuestions(question: string, views: AgentView[], fromLlm:
   for (const s of fromLlm) push(cleanSuggestion(s));
   for (const view of views) for (const id of RELATED[view] ?? []) push(questionOf(id));
   return out;
+}
+
+// ------------------------------------------------------------------ Módulos relacionados
+
+// Módulo donde se ven con más detalle los datos de cada vista.
+const MODULE_OF_VIEW: Record<AgentView, AppModule> = {
+  v_bed_occupancy: 'beds',
+  v_admissions: 'patients',
+  v_emergency_wait_times: 'patients',
+  v_diagnosis_monthly: 'patients',
+  v_drug_inventory: 'drugs',
+  v_drug_consumption_daily: 'drugs',
+  v_surgeries: 'surgeries',
+  v_service_demand_daily: 'summary',
+};
+
+// `first`: módulos que van antes que los de las vistas (p. ej. alertas en el plan de acción).
+export function relatedModules(views: AgentView[], first: AppModule[] = []): AppModule[] {
+  return [...new Set([...first, ...views.map((v) => MODULE_OF_VIEW[v])])];
 }

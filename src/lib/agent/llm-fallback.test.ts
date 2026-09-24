@@ -56,4 +56,47 @@ describe('cadena de proveedores con Gemini caído', () => {
     await generateSqlWithLlm('pregunta dos');
     expect(calls.gemini).toBe(2);
   });
+
+  it('Gemini en pausa y Groq sin cuota: se le da una última oportunidad a Gemini', async () => {
+    const calls = { gemini: 0, groq: 0 };
+    let geminiUp = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('generativelanguage')) {
+          calls.gemini++;
+          return geminiUp
+            ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: SQL_JSON }] } }] }), {
+                status: 200,
+              })
+            : new Response('{}', { status: 503 });
+        }
+        calls.groq++;
+        return new Response('{}', { status: 429 });
+      }),
+    );
+    await generateSqlWithLlm('primera'); // Gemini cae y queda en pausa; Groq sin cuota
+    geminiUp = true;
+    const r = await generateSqlWithLlm('segunda');
+    expect(r).toMatchObject({ status: 'ok', provider: 'gemini' });
+  });
+
+  it('Groq sin cuota usa el modelo de respaldo si está configurado', async () => {
+    vi.stubEnv('GROQ_FALLBACK_MODEL', 'respaldo');
+    const models: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: { body: string }) => {
+        if (url.includes('generativelanguage')) return new Response('{}', { status: 400 });
+        const { model } = JSON.parse(init.body) as { model: string };
+        models.push(model);
+        return model === 'respaldo'
+          ? new Response(JSON.stringify({ choices: [{ message: { content: SQL_JSON } }] }), { status: 200 })
+          : new Response('{}', { status: 429 });
+      }),
+    );
+    const r = await generateSqlWithLlm('pregunta');
+    expect(r).toMatchObject({ status: 'ok', provider: 'groq' });
+    expect(models).toEqual(['m', 'respaldo']);
+  });
 });

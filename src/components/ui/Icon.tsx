@@ -28,6 +28,7 @@ export const ICON = {
   file: 'M6 3h9l4 4v14H6zM14 3v5h5',
   offline: 'M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 20h.01M3 3l18 18',
   info: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 8v5M12 16h.01',
+  clock: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
 } as const;
 
 export type IconName = keyof typeof ICON;

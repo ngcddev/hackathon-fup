@@ -2,10 +2,20 @@ import 'server-only';
 import { ApiError } from '@/lib/api/errors';
 import type { AuthUser } from '@/lib/auth/with-auth';
 import { queryAsAppBackend, runAgentQuery } from '@/lib/db';
-import type { AgentView, LlmProvider, QueryCell, QueryOrigin, QueryResponse } from '@/lib/types/api';
+import type { AgentView, AppModule, LlmProvider, QueryCell, QueryOrigin, QueryResponse } from '@/lib/types/api';
 import { fillAnswerTemplate } from './answer-template';
-import { describeResult, followUpQuestions, viewNotes } from './context';
+import { ALERT_PLAN_COLUMNS, buildAlertPlan, isAlertPlanQuestion } from './alert-plan';
+import { getActiveAlerts } from './alert-suggestion-service';
+import { describeResult, followUpQuestions, relatedModules, viewNotes } from './context';
 import { detectHelp, HELP_COLUMNS, helpAnswer, helpRows, SCOPE_HINT, type HelpKind } from './help';
+import {
+  buildFinding,
+  INSIGHT_CHECKS,
+  INSIGHTS_COLUMNS,
+  isInsightsQuestion,
+  summarizeInsights,
+  type Finding,
+} from './insights';
 import { forgetDecision, generateSqlWithLlm, isLlmEnabled, rememberDecision, type LlmDecision } from './llm';
 import { NO_DATA_ANSWER, matchPlanB, suggestedQuestions } from './plan-b';
 import { isSensitiveQuestion, redactQuestionForLog, SENSITIVE_MESSAGE, stripPatientKey } from './privacy';
@@ -84,6 +94,9 @@ function buildResponse(
     provider: LlmProvider | null;
     followUps?: string[]; // preguntas sugeridas por el LLM
     withContext?: boolean; // false en las respuestas de ayuda: sin destacados, notas ni sugerencias
+    highlights?: string[]; // si vienen, reemplazan a los calculados con describeResult
+    notes?: string[]; // si vienen, reemplazan a las notas por vista
+    modules?: AppModule[]; // módulos que van antes que los derivados de las vistas
   },
 ): QueryResponse {
   const matrix = data.rows.map((row) => data.columns.map((c) => toCell(row[c])));
@@ -103,9 +116,12 @@ function buildResponse(
     includes_simulated_data: data.viewsUsed.some((v) => SIMULATED_VIEWS.has(v)),
     reference_date: referenceDate,
     duration_ms: Math.round(performance.now() - started),
-    highlights: withContext ? describeResult(data.columns, data.rows) : [],
-    notes: withContext && data.rows.length > 0 ? viewNotes(data.viewsUsed, data.answer, truncated) : [],
+    highlights: withContext ? (data.highlights ?? describeResult(data.columns, data.rows)) : [],
+    notes: withContext
+      ? (data.notes ?? (data.rows.length > 0 ? viewNotes(data.viewsUsed, data.answer, truncated) : []))
+      : [],
     follow_up_questions: withContext ? followUpQuestions(question, data.viewsUsed, data.followUps) : [],
+    modules: withContext ? relatedModules(data.viewsUsed, data.modules) : [],
   };
 }
 
@@ -122,6 +138,69 @@ async function helpResponse(question: string, started: number, kind: HelpKind): 
     provider: null,
     withContext: false,
   });
+}
+
+// Hallazgos: cada indicador pasa por el validador y se ejecuta con agent_ro, todos en paralelo.
+// Si uno falla, se omite; si fallan todos, el asistente no está disponible.
+async function insightsResponse(question: string, started: number): Promise<Outcome> {
+  const results = await Promise.all(
+    INSIGHT_CHECKS.map(async (check) => {
+      try {
+        const validation = await validateSql(check.sql);
+        if (!validation.ok) {
+          console.error(`[agent] El indicador "${check.id}" no pasó el validador: ${validation.reason}`);
+          return null;
+        }
+        const result = await runWithColdCacheRetry(validation.sql);
+        const finding = buildFinding(check, result.rows);
+        return finding ? { finding, sql: validation.sql, views: validation.viewsUsed } : null;
+      } catch (error) {
+        const code = (error as { cause?: { code?: string } }).cause?.code;
+        console.warn(`[agent] El indicador "${check.id}" falló (${code ?? 'sin código'}); se omite.`);
+        return null;
+      }
+    }),
+  );
+  const ok = results.filter((r): r is { finding: Finding; sql: string; views: AgentView[] } => r !== null);
+  const referenceDate = await getReferenceDate();
+  const summary = summarizeInsights(
+    ok.map((r) => r.finding),
+    referenceDate,
+  );
+  if (!summary) throw new ApiError('AGENT_UNAVAILABLE');
+  const sql = ok.map((r) => r.sql).join(';\n\n');
+  const response = buildResponse(question, started, referenceDate, {
+    answer: summary.answer,
+    sql,
+    viewsUsed: [...new Set(ok.flatMap((r) => r.views))],
+    columns: INSIGHTS_COLUMNS,
+    rows: summary.rows,
+    origin: 'predefined',
+    provider: null,
+    highlights: summary.highlights,
+    followUps: summary.followUps,
+  });
+  return { response, sql };
+}
+
+// Plan de acción: las mismas alertas que el módulo Alertas (mismas consultas fijas y buildAlerts),
+// con pasos concretos por tipo. No usa LLM ni SQL generado.
+async function alertPlanResponse(question: string, started: number): Promise<Outcome> {
+  const plan = buildAlertPlan(await getActiveAlerts());
+  const response = buildResponse(question, started, await getReferenceDate(), {
+    answer: plan.answer,
+    sql: '',
+    viewsUsed: plan.views,
+    columns: ALERT_PLAN_COLUMNS,
+    rows: plan.rows,
+    origin: 'predefined',
+    provider: null,
+    highlights: plan.highlights,
+    notes: plan.notes,
+    modules: plan.modules,
+    followUps: plan.followUps,
+  });
+  return { response, sql: '' };
 }
 
 // Mensaje de "fuera de alcance" con orientación sobre lo que sí se puede preguntar.
@@ -294,7 +373,13 @@ export async function handleQuery(question: string, user: AuthUser): Promise<Que
   const note = () => (trace.note === null ? null : trace.note.slice(0, NOTE_MAX));
 
   try {
-    const { response, sql } = await execute(question, trace);
+    // "¿Qué encontraste de novedoso?", "¿cómo vamos?": varios indicadores sin LLM.
+    // "¿Cómo soluciono las alertas?": plan de acción con las alertas del módulo.
+    const { response, sql } = isAlertPlanQuestion(question)
+      ? await alertPlanResponse(question, started)
+      : isInsightsQuestion(question)
+        ? await insightsResponse(question, started)
+        : await execute(question, trace);
     await logQuery({
       ...base,
       origin: response.origin,

@@ -81,6 +81,7 @@ Errores comunes a todos los endpoints: `UNAUTHENTICATED` (401), `ACCOUNT_DISABLE
 | `GET /api/me` | `null` (solo sesión) | Must |
 | `POST /api/query` | `agent:query` | Must |
 | `GET /api/kpis?service=` | `dashboard:view` | Must |
+| `POST /api/alerts/suggestion` | `dashboard:view` | Could |
 | `GET /api/sources` | `sources:view` | Must |
 | `POST /api/import/batches` | según `target` (`importPermissionFor`) | Must |
 | `POST /api/import/batches/{batchId}/rows` | según el `target` del lote | Must |
@@ -141,7 +142,8 @@ Permiso: `agent:query`. Pregunta en español; responde con el resultado y el SQL
   "duration_ms": 412,
   "highlights": ["Rango de dias restantes: de 1,8 (Medicamento simulado a) a 4 (Medicamento simulado c); promedio: 2,9."],
   "notes": [],
-  "follow_up_questions": ["¿Qué medicamentos tienen entre 5 y 10 días de inventario?"]
+  "follow_up_questions": ["¿Qué medicamentos tienen entre 5 y 10 días de inventario?"],
+  "modules": ["drugs"]
 }
 ```
 
@@ -153,7 +155,8 @@ Reglas:
 - **`patient_key` nunca aparece** en `columns` ni en `rows`: el backend filtra la columna aunque el SQL la seleccione.
 - Sin datos para la pregunta (AGE-07): 200 con `row_count: 0` y `answer` que lo explica.
 - `includes_simulated_data` es `true` si alguna vista usada tiene datos simulados (por ejemplo `v_drug_inventory`).
-- Contexto calculado por el servidor a partir de las filas (el LLM no las ve): `highlights` (hasta 3 frases con total, participación, rango, pico o tendencia), `notes` (advertencias de las vistas usadas: datos simulados, umbral de 5 ingresos en diagnósticos, cómo se mide la espera) y `follow_up_questions` (hasta 3 preguntas relacionadas). Pueden venir vacíos; en las respuestas de ayuda ("¿qué puedo consultar?") vienen vacíos y `sql` es `""`.
+- Contexto calculado por el servidor a partir de las filas (el LLM no las ve): `highlights` (hasta 3 frases con total, participación, rango, pico o tendencia), `notes` (advertencias de las vistas usadas: datos simulados, umbral de 5 ingresos en diagnósticos, cómo se mide la espera) y `follow_up_questions` (hasta 3 preguntas relacionadas). `modules` lista los módulos relacionados para enlaces rápidos (`summary`, `patients`, `beds`, `drugs`, `surgeries`, `alerts`). Pueden venir vacíos; en las respuestas de ayuda ("¿qué puedo consultar?") vienen vacíos y `sql` es `""`.
+- Preguntas sobre las alertas ("¿cómo soluciono las alertas?"): se responde un plan de acción con las mismas alertas de `GET /api/kpis` (mismo orden y recomendación), con columnas `prioridad`, `severidad`, `alerta`, `situacion` y `que_hacer`; `sql` es `""` y `modules` empieza por `alerts`.
 - El LLM solo recibe esquema, pregunta y agregados; nunca filas de pacientes (RNF-03).
 
 **Errores:**
@@ -202,6 +205,26 @@ Reglas:
 - `service_filter`: el filtro aplicado o `null`.
 
 **Errores:** 400 `VALIDATION_ERROR` (servicio desconocido).
+
+---
+
+### 4.3.1 `POST /api/alerts/suggestion`
+
+Permiso: `dashboard:view`. Sugerencia con IA para resolver una alerta activa del módulo Alertas (mock: `mocks/alerts-suggestion.json`).
+
+**Request** (`AlertSuggestionRequest`): `{ "alert_id": "stockout:MED-0001" }` (el `id` de un `KpiAlert`).
+
+**200** (`AlertSuggestionResponse`): `summary` (lectura de la situación), `steps` (de 2 a 5 pasos con `action`, `detail`, `owner`, `timeframe` y `source`: `system` o `ai`), `monitor` (indicador que confirma que se resolvió, fijado por el sistema), `facts` (datos agregados del hospital en que se apoyan los pasos), `origin` (`llm` o `predefined`), `llm_provider` y `generated_at`.
+
+Reglas:
+- El servidor recalcula las alertas activas (mismas consultas y `buildAlerts` que `GET /api/kpis`, caché de 60 s) y busca la alerta por `id`: el cliente nunca envía texto al LLM.
+- Al LLM llegan la alerta y datos de contexto agregados (`facts`: ocupación de los subservicios del mismo servicio, tendencia, altas estimadas e ingresos; consumo por área y su tendencia; espera por turno y horas pico), consultados con `agent_ro` sobre las vistas `agent`. Nunca filas de pacientes (RNF-03).
+- Cada paso de la IA debe citar una cifra de la alerta o de `facts`; se descartan los pasos sin respaldo o contradictorios (por ejemplo, frenar altas en una alerta de ocupación).
+- El paso 1 es siempre la recomendación del tablero (`source: "system"`); la IA solo aporta pasos complementarios (`source: "ai"`). Se descartan los pasos con cifras que no están en la alerta y los que repiten otro paso por significado (sinónimos incluidos). Si quedan menos de 3 pasos, se completa con el plan predefinido.
+- Si el LLM no responde o no deja ningún paso útil, se devuelve el plan predefinido con `origin: "predefined"` (no es un error).
+- Cada sugerencia de la IA se guarda 10 minutos por alerta y mensaje. Cada petición queda en `audit.query_log`.
+
+**Errores:** 400 `VALIDATION_ERROR` (`alert_id` ausente), 404 `NOT_FOUND` (la alerta ya no está activa).
 
 ---
 
