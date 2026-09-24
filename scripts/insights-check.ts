@@ -74,9 +74,34 @@ async function checkDepletionForecast() {
   report('D2 sin datos identificables', leaks(card).length === 0);
 }
 
+async function checkTrendAndStay() {
+  const { getKpis } = await import('@/lib/queries/kpis');
+  const kpis = await getKpis(null);
+  const trend = kpis.occupancy_trend;
+  const stay = kpis.avg_stay;
+  report('DAS-08 30 días hasta la fecha de referencia con scope service', trend?.scope === 'service' && trend.days.length === 30 && trend.days[0].day === addDays(kpis.reference_date, -29) && trend.days[29].day === kpis.reference_date, `${trend?.days[0]?.day} a ${trend?.days.at(-1)?.day}`);
+  const last = trend?.days.at(-1);
+  report('DAS-08 el último día coincide con la tarjeta de ocupación (DAS-01)', last?.occupied_beds === kpis.occupancy.total.occupied_beds && last?.capacity === kpis.occupancy.total.capacity && last?.occupancy_pct === kpis.occupancy.total.occupancy_pct, JSON.stringify(last));
+  report('DAS-08 cada día = ocupadas ÷ capacidad', !!trend && trend.days.every((d) => d.capacity > 0 && d.occupancy_pct === Math.round((1000 * d.occupied_beds) / d.capacity) / 10));
+  const uci = await getKpis('UNIDAD DE CUIDADO INTENSIVO');
+  report('DAS-08 con filtro UCI el último día es 30/46 (65,2 %)', uci.occupancy_trend?.days.at(-1)?.occupied_beds === 30 && uci.occupancy_trend?.days.at(-1)?.capacity === 46);
+  report('DAS-09 estancia por servicio, scope service, valores plausibles', stay?.scope === 'service' && stay.by_service.length > 0 && stay.by_service.every((s) => s.avg_stay_days >= 0 && s.avg_stay_days < 60 && s.admissions_count > 0), stay?.by_service.map((s) => `${s.service}: ${s.avg_stay_days} d (${s.admissions_count})`).join('; '));
+  report('DAS-09 con filtro UCI solo trae el servicio UCI', uci.avg_stay?.by_service.length === 1 && uci.avg_stay.by_service[0].service === 'UNIDAD DE CUIDADO INTENSIVO', JSON.stringify(uci.avg_stay?.by_service));
+  report('DAS-08/09 sin datos identificables', leaks([trend, stay]).length === 0);
+
+  const times: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const t = performance.now();
+    await getKpis(null);
+    times.push(Math.round(performance.now() - t));
+  }
+  console.log(`      GET /api/kpis, 6 corridas seguidas (ms, medidas desde esta máquina): ${times.join(', ')}`);
+}
+
 async function main() {
   await checkEmergencyWaitAlerts();
   await checkDepletionForecast();
+  await checkTrendAndStay();
   process.exit(failures === 0 ? 0 : 1);
 }
 
