@@ -78,4 +78,6 @@ Si una carpeta no está en la tabla, pregunta antes de editar. Un cambio en una 
 npm run dev            # servidor local
 npx tsc --noEmit       # verificación de tipos (incluye mocks/check.ts)
 npm run lint           # ESLint
+npm run format         # Prettier: formatea el código
+npm run format:check   # Prettier: verifica el formato sin escribir
 ```
