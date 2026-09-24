@@ -42,7 +42,7 @@ function buildConfig(role: DbRole): PoolConfig {
     connectionString: url.toString(),
     // El pooler de Supabase presenta una cadena de certificados que Node no trae en su almacén.
     ssl: isLocal ? false : { rejectUnauthorized: false },
-    max: 3, // funciones serverless: pocas conexiones por instancia
+    max: 10, // funciones serverless: pocas conexiones por instancia
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
     allowExitOnIdle: true,
