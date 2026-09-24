@@ -52,6 +52,23 @@ with checks(seccion, prueba, esperado, obtenido, ok) as (
   union all select '3 referencia', 'mv_admission_stay con filas (17774 con cama asignada)', '17774', count(*)::text, count(*) = 17774 from core.mv_admission_stay
   union all select '3 referencia', 'mv_bed_occupancy_daily con filas', '> 0', count(*)::text, count(*) > 0 from core.mv_bed_occupancy_daily
   union all select '3 referencia', 'mv_item_catalog con filas (1327 códigos)', '1327', count(*)::text, count(*) = 1327 from core.mv_item_catalog
+  -- Cada agregado diario debe coincidir con la agregación directa de su tabla (0 filas de diferencia).
+  union all select '3 referencia', 'mv_drug_consumption_daily = agregación de drug_dispensations (filas distintas)', '0', count(*)::text, count(*) = 0
+         from ((select d.dispensed_at::date, d.item_code, d.item_name, ic.item_type, d.area_name, d.specialty, sum(d.quantity)::int
+                  from core.drug_dispensations d left join core.mv_item_catalog ic on ic.item_code = d.item_code group by 1, 2, 3, 4, 5, 6
+                except select day, item_code, item_name, item_type, area_name, specialty, total_quantity from core.mv_drug_consumption_daily)
+               union all
+               (select day, item_code, item_name, item_type, area_name, specialty, total_quantity from core.mv_drug_consumption_daily
+                except select d.dispensed_at::date, d.item_code, d.item_name, ic.item_type, d.area_name, d.specialty, sum(d.quantity)::int
+                  from core.drug_dispensations d left join core.mv_item_catalog ic on ic.item_code = d.item_code group by 1, 2, 3, 4, 5, 6)) x
+  union all select '3 referencia', 'mv_service_demand_daily = agregación de service_lines (filas distintas)', '0', count(*)::text, count(*) = 0
+         from ((select provided_at::date, area_name, specialty, service_code, service_name, count(*)::int, sum(quantity)::int
+                  from core.service_lines group by 1, 2, 3, 4, 5
+                except select day, area_name, specialty, service_code, service_name, lines_count, total_quantity from core.mv_service_demand_daily)
+               union all
+               (select day, area_name, specialty, service_code, service_name, lines_count, total_quantity from core.mv_service_demand_daily
+                except select provided_at::date, area_name, specialty, service_code, service_name, count(*)::int, sum(quantity)::int
+                  from core.service_lines group by 1, 2, 3, 4, 5)) x
 
   -- 4. S-07 -------------------------------------------------------------------
   union all select '4 S-07', 'Estancias negativas', '0', count(*)::text, count(*) = 0
