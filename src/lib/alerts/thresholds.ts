@@ -11,6 +11,15 @@ export const INVENTORY_THRESHOLDS = {
   restock_target_days: 15, // días de consumo que debe cubrir el pedido sugerido
 } as const;
 
+// ALE-04: espera promedio de la última semana por nivel de triage, en minutos.
+// Triage 1 y 2: Resolución 5596 de 2015. La resolución no fija tiempo para triage 3 y 4.
+export const EMERGENCY_WAIT_THRESHOLDS_MIN: Readonly<Record<1 | 2 | 3 | 4, number>> = {
+  1: 10,
+  2: 30,
+  3: 120, // SUPUESTO: validar con el equipo
+  4: 240, // SUPUESTO: validar con el equipo
+};
+
 // Servicios cuyos subservicios atienden poblaciones distintas: nunca se recomienda
 // trasladar pacientes entre ellos (solo abrir camas o reasignar personal).
 export const NON_INTERCHANGEABLE_SERVICES: readonly string[] = ['UNIDAD DE CUIDADO INTENSIVO'];
