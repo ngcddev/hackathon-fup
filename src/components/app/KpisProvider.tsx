@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { clearOfflinePages } from '@/components/sw-register';
 import { ClientApiError, apiGet, errorMessage } from '@/lib/api/client';
 import type { KpisResponse } from '@/lib/types/api';
 
@@ -41,13 +42,14 @@ function writeSnapshot(service: string, data: KpisResponse) {
   }
 }
 
-// Al cerrar sesión no se deja copia local de indicadores en un dispositivo compartido.
+// Al cerrar sesión no se deja copia local de indicadores ni de páginas en un dispositivo compartido.
 export function clearSnapshot() {
   try {
     window.localStorage.removeItem(SNAPSHOT_KEY);
   } catch {
     // Nada que limpiar.
   }
+  void clearOfflinePages();
 }
 
 interface KpisContextValue {
