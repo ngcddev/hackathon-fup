@@ -229,6 +229,48 @@ export interface KpisResponse {
   service_filter: string | null;
 }
 
+// ---------------------------------------------------------------- GET /api/insights/wait-root-cause (D7)
+
+export interface WaitPeriod {
+  start: IsoDate;
+  end: IsoDate;
+}
+
+export interface WaitOverall {
+  current_avg_wait_minutes: number;
+  baseline_avg_wait_minutes: number;
+  change_pct: number | null; // null si la línea base es 0
+  current_volume: number;
+  baseline_volume: number;
+}
+
+export interface WaitRootCauseSegment {
+  shift: 'dia' | 'noche';
+  weekday: number; // 1 lunes a 7 domingo (ISO)
+  weekday_name: string;
+  triage_level: number | null; // null: ingresos sin triage
+  current_avg_wait_minutes: number; // última semana
+  baseline_avg_wait_minutes: number; // 4 semanas anteriores
+  change_minutes: number; // actual − línea base
+  change_pct: number | null;
+  current_volume: number; // ingresos de la última semana en el segmento
+  baseline_volume: number;
+  contribution_minutes: number; // cambio × volumen actual (minutos de espera acumulados)
+  contribution_share_pct: number | null; // % del cambio total (cambio global × volumen actual global)
+}
+
+export interface WaitRootCauseResponse {
+  scope: KpiScope; // 'hospital'
+  current_period: WaitPeriod; // última semana (reference_date − 6 a reference_date)
+  baseline_period: WaitPeriod; // las 4 semanas anteriores (28 días)
+  min_segment_volume: number; // segmentos con menos ingresos (en cualquiera de los dos periodos) no se reportan
+  overall: WaitOverall;
+  top_segments: WaitRootCauseSegment[]; // hasta 3, los que más aportan al cambio
+  summary: string; // frase armada con plantilla, sin LLM
+  reference_date: IsoDate;
+  generated_at: AuditTimestamp;
+}
+
 // ---------------------------------------------------------------- GET /api/sources
 
 export type BatchLoadType = 'historical' | 'ui_import' | 'seed_synthetic';
