@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Tokens del diseño (Hospital Susana López de Valencia): navy institucional, verde hoja y semánticos. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --color-navy: #1b2754;
+  --color-leaf: #4c8c23;
+  --color-forest: #2f6327;
+  --color-ink: #0f172a;
+  --color-muted: #475569;
+  --color-line: #e2e8f0;
+  --color-canvas: #f8fafc;
+  --color-mist: #eef2f6;
+  --color-danger: #c0392b;
+  --color-danger-bg: #fef3f2;
+  --color-danger-line: #fecdca;
+  --color-warn: #93370d;
+  --color-warn-bg: #fffaeb;
+  --color-warn-line: #fedf89;
+  --color-ok: #2e7d32;
+
+  --shadow-card: 0 2px 8px -2px rgba(27, 39, 84, 0.05);
+  --shadow-float: 0 12px 32px -4px rgba(27, 39, 84, 0.15);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Estilos base en @layer base para que las utilidades de Tailwind (className) los puedan sobrescribir. */
+@layer base {
+  html {
+    background: #f8fafc;
+  }
+
+  body {
+    margin: 0;
+    background: #f8fafc;
+    color: #0f172a;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: #2f6327;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  a:hover {
+    color: #1b2754;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid #4c8c23;
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes sgh-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.sgh-pulse {
+  animation: sgh-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sgh-pulse {
+    animation: none;
+  }
 }
