@@ -35,7 +35,56 @@ async function main() {
     `${wait.avg_wait_minutes} min, ${wait.admissions_count} ingresos`,
   );
 
-  console.log(JSON.stringify({ uci, drugs, wait }, null, 2));
+  const { getKpis } = await import('@/lib/queries/kpis');
+  const { ApiError } = await import('@/lib/api/errors');
+
+  const timed = async (service: string | null) => {
+    const started = performance.now();
+    const response = await getKpis(service);
+    return { response, ms: Math.round(performance.now() - started) };
+  };
+  const full = await timed(null);
+
+  const FORBIDDEN = /patient|document|birth|reason|diagnosis_code|triage_code|^name$|^full_name$/i;
+  const leaks: string[] = [];
+  const walk = (value: unknown, path: string) => {
+    if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${path}[${i}]`));
+    else if (value && typeof value === 'object')
+      for (const [k, v] of Object.entries(value)) {
+        if (FORBIDDEN.test(k)) leaks.push(`${path}.${k}`);
+        walk(v, `${path}.${k}`);
+      }
+  };
+  walk(full.response, 'kpis');
+  report('4. Ninguna tarjeta devuelve patient_key ni columnas identificables', leaks.length === 0, leaks.join(', '));
+
+  const warm = await timed(null);
+  const filtered = await timed('UNIDAD DE CUIDADO INTENSIVO');
+  report(
+    '5. Tiempo total de las tarjetas en paralelo (meta < 1500 ms)',
+    warm.ms < 1500 && filtered.ms < 1500,
+    `sin filtro: ${full.ms} ms en frío, ${warm.ms} ms en caliente; con filtro UCI: ${filtered.ms} ms`,
+  );
+  report(
+    '5b. Con filtro UCI solo cambian las tarjetas de scope service',
+    filtered.response.occupancy.total.capacity === 46 &&
+      filtered.response.demand.admissions_by_service.every((s) => s.service === 'UNIDAD DE CUIDADO INTENSIVO') &&
+      filtered.response.alerts.length === full.response.alerts.length &&
+      filtered.response.demand.services_by_specialty.length === full.response.demand.services_by_specialty.length,
+  );
+
+  try {
+    await getKpis('SERVICIO QUE NO EXISTE');
+    report('6. Servicio inexistente -> error de validación', false, 'no lanzó error');
+  } catch (error) {
+    report(
+      '6. Servicio inexistente -> error de validación',
+      error instanceof ApiError && error.code === 'VALIDATION_ERROR',
+      String(error),
+    );
+  }
+
+  console.log(JSON.stringify(full.response, null, 2));
   process.exit(failures === 0 ? 0 : 1);
 }
 

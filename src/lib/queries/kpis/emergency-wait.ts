@@ -20,8 +20,8 @@ export async function getEmergencyWaitCard(): Promise<EmergencyWaitCard> {
             COUNT(*)::int AS admissions_count,
             ROUND(AVG(wait_minutes), 1) AS avg_wait_minutes
        FROM agent.v_emergency_wait_times
-      WHERE admitted_at >= agent.reference_date() - 6
-        AND admitted_at <  agent.reference_date() + 1
+      WHERE admitted_at >= (SELECT agent.reference_date()) - 6
+        AND admitted_at <  (SELECT agent.reference_date()) + 1
       GROUP BY GROUPING SETS ((triage_level), ())`,
   );
   const total = rows.find((r) => r.is_total);
