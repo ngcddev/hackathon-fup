@@ -7,6 +7,9 @@
 --   3. Ejecuta. Termina a propósito con un error "RESULTADO: ..." que aborta la transacción: no
 --      queda nada creado ni cambiado. Cada línea trae igual=true/false, filas y milisegundos.
 --
+-- Al final compara cada vista materializada contra la agregación directa de su tabla de origen,
+-- para detectar una MV desactualizada o distinta (la de consumo ya existía en la base compartida).
+--
 -- Son las consultas de la API (critical-drugs, demanda, rotación), las 4 del plan B del agente que
 -- usan estas vistas y 4 típicas del LLM. Corren antes y después de la migración, y se compara el
 -- resultado completo (ordenado, sin depender del orden). Corren con el rol del editor: los datos
@@ -41,7 +44,7 @@ end $before$;
 -- PEGA AQUÍ LA MIGRACIÓN (supabase/migrations/20260924180000_daily_aggregate_mvs.sql)
 
 do $after$
-declare q record; v jsonb; t timestamptz; msg text := ''; r record;
+declare q record; v jsonb; t timestamptz; msg text := ''; r record; n bigint;
 begin
   for q in select * from qs loop
     t := clock_timestamp();
@@ -52,5 +55,21 @@ begin
            from res b join res a on a.k = b.k and a.phase = 'after' where b.phase = 'before' order by b.k loop
     msg := msg || format(E'\n%s | igual=%s | filas %s->%s | %s ms -> %s ms', r.k, r.igual, r.filas_antes, r.filas_despues, r.ms_antes, r.ms_despues);
   end loop;
+  select count(*) into n from ((select d.dispensed_at::date, d.item_code, d.item_name, ic.item_type, d.area_name, d.specialty, sum(d.quantity)::int
+         from core.drug_dispensations d left join core.mv_item_catalog ic on ic.item_code = d.item_code group by 1, 2, 3, 4, 5, 6
+         except select day, item_code, item_name, item_type, area_name, specialty, total_quantity from core.mv_drug_consumption_daily)
+       union all (select day, item_code, item_name, item_type, area_name, specialty, total_quantity from core.mv_drug_consumption_daily
+         except select d.dispensed_at::date, d.item_code, d.item_name, ic.item_type, d.area_name, d.specialty, sum(d.quantity)::int
+         from core.drug_dispensations d left join core.mv_item_catalog ic on ic.item_code = d.item_code group by 1, 2, 3, 4, 5, 6)) x;
+  msg := msg || format(E'
+mv_drug_consumption_daily vs drug_dispensations | igual=%s (%s filas distintas)', n = 0, n);
+  select count(*) into n from ((select provided_at::date, area_name, specialty, service_code, service_name, count(*)::int, sum(quantity)::int
+         from core.service_lines group by 1, 2, 3, 4, 5
+         except select day, area_name, specialty, service_code, service_name, lines_count, total_quantity from core.mv_service_demand_daily)
+       union all (select day, area_name, specialty, service_code, service_name, lines_count, total_quantity from core.mv_service_demand_daily
+         except select provided_at::date, area_name, specialty, service_code, service_name, count(*)::int, sum(quantity)::int
+         from core.service_lines group by 1, 2, 3, 4, 5)) x;
+  msg := msg || format(E'
+mv_service_demand_daily vs service_lines | igual=%s (%s filas distintas)', n = 0, n);
   raise exception 'RESULTADO:%', msg;
 end $after$;

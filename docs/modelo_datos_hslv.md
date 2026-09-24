@@ -361,20 +361,20 @@ Un registro por medicamento o insumo dispensado. Índice único: `item_code`.
 | dispensation_rows | int | Número de dispensaciones del ítem en el histórico. |
 
 ### core.mv_drug_consumption_daily
-Consumo por día, ítem, área y especialidad (134 mil filas frente a 579 mil de `drug_dispensations`). Existe porque agregar `dispensed_at::date` en cada consulta obligaba a un escaneo completo. `item_type` se guarda como `''` cuando el ítem no está en el catálogo, para poder usarlo en el índice único; `agent.v_drug_consumption_daily` lo devuelve como NULL. Índice único: (`day`, `item_code`, `item_name`, `item_type`, `area_name`, `specialty`); índice por `day`.
+Consumo por día, ítem, área y especialidad (134 mil filas frente a 579 mil de `drug_dispensations`). Existe porque agregar `dispensed_at::date` en cada consulta obligaba a un escaneo completo. `item_type` es NULL si el ítem no está en el catálogo (hoy ninguno lo está). Índice único: (`day`, `item_code`, `item_name`, `item_type`, `area_name`, `specialty`), que también sirve al filtro por rango de `day`; índice (`item_code`, `day`).
 
 | Columna | Tipo | Descripción |
 |---|---|---|
 | day | date | Día de la dispensación. |
 | item_code | text | Código del ítem. |
 | item_name | text | Nombre del ítem. |
-| item_type | text | `medicamento`, `dispositivo` o `''`. |
+| item_type | text | `medicamento`, `dispositivo` o NULL. |
 | area_name | text | Área. |
 | specialty | text | Especialidad. |
 | total_quantity | int | Cantidad dispensada ese día. |
 
 ### core.mv_service_demand_daily
-Servicios prestados por día, área, especialidad y servicio (92 mil filas frente a 582 mil de `service_lines`). Índice único: (`day`, `area_name`, `specialty`, `service_code`, `service_name`); índice por `day`.
+Servicios prestados por día, área, especialidad y servicio (92 mil filas frente a 582 mil de `service_lines`). Índice único: (`day`, `area_name`, `specialty`, `service_code`, `service_name`), que también sirve al filtro por rango de `day`.
 
 | Columna | Tipo | Descripción |
 |---|---|---|
@@ -443,8 +443,8 @@ Reglas comunes:
 | core.drug_stock | UNIQUE (item_code, stock_date) | Foto más reciente por medicamento. |
 | core.surgery_schedules | (admission_id, service_code), (schedule_number) | Cruce con servicios prestados y agrupación por programación. |
 | core.mv_item_catalog | UNIQUE (item_code) | Requisito de `REFRESH ... CONCURRENTLY` y cruce con inventario. |
-| core.mv_drug_consumption_daily | UNIQUE (day, item_code, item_name, item_type, area_name, specialty), (day) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días. |
-| core.mv_service_demand_daily | UNIQUE (day, area_name, specialty, service_code, service_name), (day) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días. |
+| core.mv_drug_consumption_daily | UNIQUE (day, item_code, item_name, item_type, area_name, specialty), (item_code, day) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días; el segundo, consumo por ítem. |
+| core.mv_service_demand_daily | UNIQUE (day, area_name, specialty, service_code, service_name) | Requisito de `REFRESH ... CONCURRENTLY` y filtro por rango de días. |
 | Todas las tablas con `batch_id` | (batch_id) | Revertir un lote. |
 | audit.query_log | (user_id, asked_at) | Consulta del log por usuario. |
 
