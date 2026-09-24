@@ -287,6 +287,47 @@ async function checkRevertErrors(batchesBefore: number) {
   report('IMP-08 la prueba no dejó lotes ni usuarios en la base (ROLLBACK)', b.n === batchesBefore && u.n === 0, `lotes ${batchesBefore} → ${b.n}, perfiles ${u.n}`);
 }
 
+async function checkArrivals() {
+  const { buildArrivals, getArrivalsInsight } = await import('@/lib/queries/insights/arrivals');
+  const { queryAsAppBackend } = await import('@/lib/db');
+
+  // Datos sintéticos con resultado calculado a mano: 1 llegada por celda y día de la semana (una
+  // aparición de cada día), salvo martes 10 y 11 h con 2. Franja martes 10-12 = 4, las otras 83 = 2.
+  const rows = [];
+  for (let weekday = 1; weekday <= 7; weekday++)
+    for (let hour = 0; hour < 24; hour++) rows.push({ weekday, hour, arrivals: weekday === 2 && (hour === 10 || hour === 11) ? 2 : 1 });
+  const occurrences = Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((d) => [d, 1]));
+  const synthetic = buildArrivals(rows, { period_start: '2026-09-15', period_end: '2026-09-21', days_count: 7, occurrences }, '2026-09-21');
+  const top = synthetic.top_slots[0];
+  const baseline = (83 * 2 + 4) / 84;
+  report('D6 (sintético) la franja pico es martes 10 a 12 con 98 % sobre el promedio', top.weekday === 2 && top.hour_start === 10 && top.hour_end === 12 && top.pct_above_average === Math.round(100 * (4 / baseline - 1)), top.recommendation);
+  report('D6 (sintético) la recomendación sigue la plantilla', top.recommendation === 'Martes de 10 a 12: 98 % por encima del promedio; reforzar el turno día.', top.recommendation);
+  report('D6 (sintético) 168 celdas y promedio de franjas', synthetic.cells.length === 168 && synthetic.avg_arrivals_per_slot === Math.round(baseline * 100) / 100);
+
+  const real = await getArrivalsInsight();
+  const [truth] = await queryAsAppBackend<{ total: number; d0: string }>(
+    `SELECT COUNT(*)::int AS total, MIN(admitted_at)::date::text AS d0 FROM agent.v_admissions
+      WHERE admission_route = 'Urgencias' AND admitted_at < (SELECT agent.reference_date()) + 1`,
+  );
+  report('D6 total de llegadas y periodo coinciden con la base', real.arrivals_total === truth.total && real.period_start === truth.d0 && real.period_end === real.reference_date && real.days_count === 144, `${real.arrivals_total} llegadas, ${real.period_start} a ${real.period_end}, ${real.days_count} días`);
+  report('D6 168 celdas (7 días × 24 horas)', real.cells.length === 168);
+  // Verificación independiente de la franja pico: llegadas ÷ veces que aparece ese día de la semana.
+  const p = real.top_slots[0];
+  const [slot] = await queryAsAppBackend<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM agent.v_admissions
+      WHERE admission_route = 'Urgencias' AND admitted_at < (SELECT agent.reference_date()) + 1
+        AND EXTRACT(ISODOW FROM admitted_at)::int = $1 AND EXTRACT(HOUR FROM admitted_at)::int >= $2 AND EXTRACT(HOUR FROM admitted_at)::int < $3`,
+    [p.weekday, p.hour_start, p.hour_end],
+  );
+  let occ = 0;
+  for (let d = new Date(`${real.period_start}T00:00:00Z`); d <= new Date(`${real.period_end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) if (((d.getUTCDay() + 6) % 7) + 1 === p.weekday) occ++;
+  report('D6 promedio de la franja pico = llegadas ÷ apariciones del día (cálculo independiente)', p.avg_arrivals === Math.round((10 * slot.n) / occ) / 10, `${slot.n} llegadas ÷ ${occ} = ${(slot.n / occ).toFixed(2)}`);
+  report('D6 3 franjas, de mayor a menor, todas sobre el promedio', real.top_slots.length === 3 && real.top_slots.every((s, i, a) => s.pct_above_average > 0 && (i === 0 || a[i - 1].avg_arrivals >= s.avg_arrivals)));
+  report('D6 recomendaciones con la plantilla', real.top_slots.every((s) => /^\p{Lu}\p{L}+ de \d+ a \d+: \d+ % por encima del promedio; reforzar el turno (día|noche)\.$/u.test(s.recommendation)));
+  report('D6 sin datos identificables', leaks(real).length === 0);
+  for (const s of real.top_slots) console.log(`      ${s.recommendation} (${s.avg_arrivals} llegadas por franja; promedio ${real.avg_arrivals_per_slot})`);
+}
+
 async function main() {
   await checkEmergencyWaitAlerts();
   await checkDepletionForecast();
@@ -295,6 +336,7 @@ async function main() {
   const [{ n: batchesBefore }] = await queryAsAppBackend<{ n: number }>('SELECT count(*)::int AS n FROM audit.import_batches');
   await checkRevert();
   await checkRevertErrors(batchesBefore);
+  await checkArrivals();
   process.exit(failures === 0 ? 0 : 1);
 }
 
