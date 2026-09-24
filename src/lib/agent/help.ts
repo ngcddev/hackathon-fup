@@ -7,7 +7,8 @@ import { normalizeText } from './text';
 
 export type HelpKind = 'greeting' | 'thanks' | 'help';
 
-const GREETING = '(?:hola|holi|buenas|buenos dias|buen dia|buenas tardes|buenas noches|hey|oye|saludos|que tal|como estas|como vas)';
+const GREETING =
+  '(?:hola|holi|buenas|buenos dias|buen dia|buenas tardes|buenas noches|hey|oye|saludos|que tal|como estas|como vas)';
 const LEAD = `^(?:${GREETING}\\s+)*(?:(?:y|a ver|dime|cuentame|me dices|me puedes decir|podrias decirme|quisiera saber|quiero saber|una pregunta)\\s+)?`;
 const FILLER =
   '(?:\\s+(?:por favor|porfa|porfavor|contigo|con usted|aqui|aca|en este sistema|en el sistema|en este chat|del hospital|sobre el hospital|tu|usted|bot|asistente|agente|exactamente|hoy|entonces|mas|orientame|guiame|ayudame))*$';
@@ -31,7 +32,8 @@ const HELP_CORE = [
 
 const HELP_RE = new RegExp(`${LEAD}(?:${HELP_CORE.join('|')})${FILLER}`);
 const GREETING_RE = new RegExp(`^(?:${GREETING}\\s*)+${FILLER}`);
-const THANKS_RE = /^(?:(?:muchas|mil) )?(?:gracias|ok|okay|listo|perfecto|genial|excelente|vale|entendido|super)(?: (?:gracias|muchas gracias|bot|asistente))*$/;
+const THANKS_RE =
+  /^(?:(?:muchas|mil) )?(?:gracias|ok|okay|listo|perfecto|genial|excelente|vale|entendido|super)(?: (?:gracias|muchas gracias|bot|asistente))*$/;
 
 export function detectHelp(question: string): HelpKind | null {
   const text = normalizeText(question);

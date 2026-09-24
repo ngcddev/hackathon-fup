@@ -23,7 +23,10 @@ export async function revertBatch(batchId: string, actorUserId: string): Promise
     const code = (error as { code?: string }).code;
     if (code === 'P0002') throw new ApiError('NOT_FOUND', 'El lote no existe.');
     if (code === '55000') {
-      throw new ApiError('BATCH_INVALID_STATE', 'Solo se pueden revertir lotes importados desde la interfaz que estén aplicados.');
+      throw new ApiError(
+        'BATCH_INVALID_STATE',
+        'Solo se pueden revertir lotes importados desde la interfaz que estén aplicados.',
+      );
     }
     if (code === '42501') throw new ApiError('FORBIDDEN');
     throw toInternalError('revertBatch', error);

@@ -16,7 +16,7 @@ export function OriginBadge({ origin, label }: { origin: Origin; label?: string 
 export type Severity = 'critical' | 'warning';
 
 const SEVERITY: Record<Severity, { label: string; icon: IconName; box: string; text: string }> = {
-  critical: { label: 'Crítica', icon: 'alertas', box: 'border-danger-line bg-danger-bg', text: 'text-danger' },
+  critical: { label: 'Crítica', icon: 'alerts', box: 'border-danger-line bg-danger-bg', text: 'text-danger' },
   warning: { label: 'Advertencia', icon: 'warning', box: 'border-warn-line bg-warn-bg', text: 'text-warn' },
 };
 
@@ -60,7 +60,12 @@ export function StatusBadge({ status, simulated = false }: { status: BatchStatus
   }
   const s = BATCH_STATUS[status];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-bold', s.box)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-bold',
+        s.box,
+      )}
+    >
       {s.icon && <Icon name={s.icon} size={14} strokeWidth={2.2} />}
       {s.label}
     </span>

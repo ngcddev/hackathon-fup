@@ -13,7 +13,9 @@ const { withAuth } = await import('./with-auth');
 
 const request = {} as NextRequest;
 const routeContext = { params: Promise.resolve({}) };
-const handler = vi.fn(async (_req: NextRequest, ctx: { user: { role: string } }) => Response.json({ role: ctx.user.role }));
+const handler = vi.fn(async (_req: NextRequest, ctx: { user: { role: string } }) =>
+  Response.json({ role: ctx.user.role }),
+);
 
 async function call(permission: Parameters<typeof withAuth>[0]) {
   const response = await withAuth(permission, handler)(request, routeContext);

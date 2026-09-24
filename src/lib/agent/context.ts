@@ -27,7 +27,8 @@ function toNumber(value: unknown): number | null {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 const TIME_COLUMN = /^(dia|day|fecha|date|mes|month|hora|hour|semana|week|scheduled_month)$/;
 // Medidas que no se pueden sumar (promedios, porcentajes, días de inventario…).
-const NON_ADDITIVE = /(pct|porcentaje|promedio|prom|avg|media|tasa|ratio|indice|dias|min|minutos|horas|consumo_diario|stock)/;
+const NON_ADDITIVE =
+  /(pct|porcentaje|promedio|prom|avg|media|tasa|ratio|indice|dias|min|minutos|horas|consumo_diario|stock)/;
 const TOTAL_LABEL = /^total\b/i;
 
 const fmt = (n: number, decimals = 1) => formatNumber(n, decimals);
@@ -134,10 +135,19 @@ export function describeResult(columns: string[], rows: Row[]): string[] {
 // [texto, fragmento que indica que la respuesta ya lo dice]
 const VIEW_NOTES: Partial<Record<AgentView, [string, RegExp]>> = {
   v_drug_inventory: ['El inventario es simulado a partir del consumo real de los últimos 30 días.', /simulad/i],
-  v_bed_occupancy: ['Parte de la capacidad de camas es derivada del histórico, no de un censo oficial.', /capacidad.*derivad/i],
-  v_diagnosis_monthly: ['Por privacidad, los diagnósticos solo cuentan grupos de 5 o más ingresos por mes y servicio.', /5 o m[aá]s/i],
+  v_bed_occupancy: [
+    'Parte de la capacidad de camas es derivada del histórico, no de un censo oficial.',
+    /capacidad.*derivad/i,
+  ],
+  v_diagnosis_monthly: [
+    'Por privacidad, los diagnósticos solo cuentan grupos de 5 o más ingresos por mes y servicio.',
+    /5 o m[aá]s/i,
+  ],
   v_surgeries: ['Solo se cuentan cirugías programadas cuyo ingreso aparece en el extracto del HIS.', /extracto/i],
-  v_emergency_wait_times: ['La espera se mide desde el triage (o desde el ingreso si no hay triage), hasta un máximo de 24 horas.', /desde el triage/i],
+  v_emergency_wait_times: [
+    'La espera se mide desde el triage (o desde el ingreso si no hay triage), hasta un máximo de 24 horas.',
+    /desde el triage/i,
+  ],
 };
 
 export function viewNotes(views: AgentView[], answer: string, truncated: boolean): string[] {
@@ -170,7 +180,10 @@ const DEPENDS_ON_RESULT = /\b(ese|esa|esos|esas|eso|dicho|dicha|aquel|aquella|mi
 // Limpia lo que propone el LLM: texto corto, una línea, con forma de pregunta y que se entienda sola.
 function cleanSuggestion(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  const text = value.replace(/[\u0000-\u001f\u007f<>{}]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = value
+    .replace(/[\u0000-\u001f\u007f<>{}]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (text.length < 8 || text.length > MAX_FOLLOW_UP_CHARS) return null;
   if (DEPENDS_ON_RESULT.test(normalizeText(text))) return null;
   return /[?¿]/.test(text) ? text : `¿${text.replace(/[.]$/, '')}?`;

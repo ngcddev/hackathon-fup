@@ -31,10 +31,7 @@ export function normalizeQuestion(input: string): string {
 // mayúsculas y sin tildes, así que '%apendícitis%' nunca coincidiría. Conserva la ñ.
 export function unaccentLikeLiterals(sql: string): string {
   return sql.replace(/(\bI?LIKE\s+)'((?:[^']|'')*)'/gi, (_, op: string, literal: string) => {
-    const clean = literal
-      .normalize('NFD')
-      .replace(/[̀-̂̄-ͯ]/g, '')
-      .normalize('NFC');
+    const clean = literal.normalize('NFD').replace(/[̀-̂̄-ͯ]/g, '').normalize('NFC');
     return `${op}'${clean}'`;
   });
 }

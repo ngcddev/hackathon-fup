@@ -20,7 +20,11 @@ function ArrivalsHeatmap() {
       <Card className="flex flex-col items-start gap-3 p-4 sm:p-6">
         <CardTitle>Llegadas a urgencias por día y hora</CardTitle>
         <div className="text-[15px] text-muted">{error}</div>
-        <button type="button" onClick={reload} className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold">
+        <button
+          type="button"
+          onClick={reload}
+          className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold"
+        >
           Reintentar
         </button>
       </Card>
@@ -28,13 +32,15 @@ function ArrivalsHeatmap() {
   }
 
   const max = Math.max(0.0001, ...data.cells.map((c) => c.avg_arrivals));
-  const cell = (weekday: number, hour: number) => data.cells.find((c) => c.weekday === weekday && c.hour === hour)?.avg_arrivals ?? 0;
+  const cell = (weekday: number, hour: number) =>
+    data.cells.find((c) => c.weekday === weekday && c.hour === hour)?.avg_arrivals ?? 0;
 
   return (
     <Card className="flex flex-col gap-4 p-4 sm:p-6">
       <CardTitle origin="Derivado">Llegadas a urgencias por día y hora</CardTitle>
       <div className="text-[15px] text-muted">
-        Promedio de llegadas del {fmtDate(data.period_start)} al {fmtDate(data.period_end)} ({fmtInt(data.days_count)} días, {fmtInt(data.arrivals_total)} llegadas). Más oscuro, más llegadas.
+        Promedio de llegadas del {fmtDate(data.period_start)} al {fmtDate(data.period_end)} ({fmtInt(data.days_count)}{' '}
+        días, {fmtInt(data.arrivals_total)} llegadas). Más oscuro, más llegadas.
       </div>
       <div className="overflow-x-auto">
         <div className="min-w-[640px]">
@@ -67,12 +73,17 @@ function ArrivalsHeatmap() {
       {data.top_slots.length > 0 && (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3.5">
           {data.top_slots.map((slot) => (
-            <div key={`${slot.weekday}-${slot.hour_start}`} className="flex flex-col gap-1.5 rounded-xl border border-line p-4">
+            <div
+              key={`${slot.weekday}-${slot.hour_start}`}
+              className="flex flex-col gap-1.5 rounded-xl border border-line p-4"
+            >
               <div className="text-[15px] font-extrabold text-navy">
-                {slot.weekday_name} {String(slot.hour_start).padStart(2, '0')}:00 – {String(slot.hour_end % 24).padStart(2, '0')}:00
+                {slot.weekday_name} {String(slot.hour_start).padStart(2, '0')}:00 –{' '}
+                {String(slot.hour_end % 24).padStart(2, '0')}:00
               </div>
               <div className="text-sm text-muted">
-                {fmtNum(slot.avg_arrivals)} llegadas · {fmtNum(slot.pct_above_average)} % sobre el promedio · turno {slot.shift}
+                {fmtNum(slot.avg_arrivals)} llegadas · {fmtNum(slot.pct_above_average)} % sobre el promedio · turno{' '}
+                {slot.shift}
               </div>
               <div className="text-[15px] text-slate-700">{slot.recommendation}</div>
             </div>
@@ -91,7 +102,11 @@ function WaitRootCause() {
       <Card className="flex flex-col items-start gap-3 p-4 sm:p-6">
         <CardTitle>¿Por qué cambió la espera en urgencias?</CardTitle>
         <div className="text-[15px] text-muted">{error}</div>
-        <button type="button" onClick={reload} className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold">
+        <button
+          type="button"
+          onClick={reload}
+          className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold"
+        >
           Reintentar
         </button>
       </Card>
@@ -119,13 +134,20 @@ function WaitRootCause() {
         </div>
         <div className="rounded-xl border border-line p-4">
           <div className="text-[13px] font-semibold text-muted">Cambio</div>
-          <div className="text-[28px] font-extrabold">{overall.change_pct === null ? '—' : `${overall.change_pct >= 0 ? '▲' : '▼'} ${fmtNum(Math.abs(overall.change_pct))} %`}</div>
+          <div className="text-[28px] font-extrabold">
+            {overall.change_pct === null
+              ? '—'
+              : `${overall.change_pct >= 0 ? '▲' : '▼'} ${fmtNum(Math.abs(overall.change_pct))} %`}
+          </div>
         </div>
       </div>
       {data.top_segments.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-line">
           {data.top_segments.map((s, i) => (
-            <div key={i} className="grid grid-cols-1 items-center gap-1 border-t sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(90px,1fr))] sm:gap-3 border-line px-4 py-3 text-[15px] first:border-t-0">
+            <div
+              key={i}
+              className="grid grid-cols-1 items-center gap-1 border-t sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(90px,1fr))] sm:gap-3 border-line px-4 py-3 text-[15px] first:border-t-0"
+            >
               <span className="font-bold text-navy">
                 {s.weekday_name} · {s.shift === 'dia' ? 'día' : 'noche'} · {triageLabel(s.triage_level)}
               </span>
@@ -133,7 +155,9 @@ function WaitRootCause() {
                 {fmtNum(s.baseline_avg_wait_minutes)} → <strong>{fmtNum(s.current_avg_wait_minutes)} min</strong>
               </span>
               <span className="text-muted">{fmtInt(s.current_volume)} ingresos</span>
-              <span className="font-semibold">{s.contribution_share_pct === null ? '—' : `${fmtNum(s.contribution_share_pct)} % del cambio`}</span>
+              <span className="font-semibold">
+                {s.contribution_share_pct === null ? '—' : `${fmtNum(s.contribution_share_pct)} % del cambio`}
+              </span>
             </div>
           ))}
         </div>
@@ -142,7 +166,7 @@ function WaitRootCause() {
   );
 }
 
-function Estado({ data }: { data: KpisResponse }) {
+function PatientsStatus({ data }: { data: KpisResponse }) {
   const admissions = data.demand.admissions_by_service;
   const total = admissions.reduce((sum, s) => sum + s.admissions_count, 0);
   const maxAdm = Math.max(1, ...admissions.map((s) => s.admissions_count));
@@ -157,11 +181,16 @@ function Estado({ data }: { data: KpisResponse }) {
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-3 text-[15px] text-slate-700">
         <Icon name="shield" />
-        Datos agregados y anonimizados. No se muestran nombres, documentos, motivos de consulta ni identificadores de paciente.
+        Datos agregados y anonimizados. No se muestran nombres, documentos, motivos de consulta ni identificadores de
+        paciente.
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-5">
-        <Stat label="Ingresos del periodo" value={fmtInt(total)} sub={`${fmtDate(data.demand.period_start)} – ${fmtDate(data.demand.period_end)}`} />
+        <Stat
+          label="Ingresos del periodo"
+          value={fmtInt(total)}
+          sub={`${fmtDate(data.demand.period_start)} – ${fmtDate(data.demand.period_end)}`}
+        />
         <Stat
           label="Estancia promedio"
           value={
@@ -179,13 +208,17 @@ function Estado({ data }: { data: KpisResponse }) {
         <div className="col-span-full flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-white px-6 py-[22px] shadow-card">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[15px] font-semibold text-muted">
-              Espera promedio por nivel de triage · {fmtNum(wait.avg_wait_minutes)} min general ({fmtDate(wait.period_start)} – {fmtDate(wait.period_end)})
+              Espera promedio por nivel de triage · {fmtNum(wait.avg_wait_minutes)} min general (
+              {fmtDate(wait.period_start)} – {fmtDate(wait.period_end)})
             </span>
             <OriginBadge origin="Derivado" />
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,130px),1fr))] gap-2.5">
             {wait.by_triage_level.map((t) => (
-              <div key={String(t.triage_level)} className="flex flex-col gap-0.5 rounded-[10px] border border-line px-3 py-2.5">
+              <div
+                key={String(t.triage_level)}
+                className="flex flex-col gap-0.5 rounded-[10px] border border-line px-3 py-2.5"
+              >
                 <span className="text-[13px] font-bold text-muted">{triageLabel(t.triage_level)}</span>
                 <span className="text-2xl font-extrabold">{fmtNum(t.avg_wait_minutes)}</span>
                 <span className="text-[13px] text-muted">min · {fmtInt(t.admissions_count)} ingresos</span>
@@ -200,7 +233,10 @@ function Estado({ data }: { data: KpisResponse }) {
           <h3 className="m-0 text-[21px] font-bold">Ingresos por servicio</h3>
           {admissions.length === 0 && <div className="text-[15px] text-muted">Sin ingresos en el periodo.</div>}
           {admissions.map((s) => (
-            <div key={s.service} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]">
+            <div
+              key={s.service}
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]"
+            >
               <span className="text-[15px] font-semibold">{prettyName(s.service)}</span>
               <MiniBar pct={(s.admissions_count / maxAdm) * 100} />
               <span className="text-right text-[15px] font-extrabold">{fmtInt(s.admissions_count)}</span>
@@ -210,7 +246,10 @@ function Estado({ data }: { data: KpisResponse }) {
         <Card className="flex flex-col gap-3 p-4 sm:p-6">
           <h3 className="m-0 mb-1 text-[21px] font-bold">Servicios prestados por especialidad</h3>
           {specialties.map((s) => (
-            <div key={s.specialty} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]">
+            <div
+              key={s.specialty}
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]"
+            >
               <span className="text-[15px] font-semibold">{prettyName(s.specialty)}</span>
               <MiniBar pct={(s.lines_count / maxSpec) * 100} />
               <span className="text-right text-[15px] font-extrabold">{fmtInt(s.lines_count)}</span>
@@ -226,10 +265,10 @@ function Estado({ data }: { data: KpisResponse }) {
   );
 }
 
-export function PacientesView() {
+export function PatientsView() {
   return (
     <EntityView target={null} note="La importación incremental del HIS es solo para el rol Administrador.">
-      <KpiGate label="pacientes">{(data) => <Estado data={data} />}</KpiGate>
+      <KpiGate label="pacientes">{(data) => <PatientsStatus data={data} />}</KpiGate>
     </EntityView>
   );
 }

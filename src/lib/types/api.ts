@@ -349,7 +349,14 @@ export type ImportTarget = (typeof IMPORT_TARGETS)[number];
 export const IMPORT_COLUMNS = {
   drug_stock: ['item_code', 'item_name', 'stock_date', 'current_stock', 'unit', 'expiration_date'],
   bed_inventory: ['bed_code', 'bed_name', 'bed_group', 'bed_subgroup', 'is_active'],
-  surgery_schedules: ['schedule_number', 'patient_id', 'admission_id', 'service_code', 'scheduled_date', 'operating_room'],
+  surgery_schedules: [
+    'schedule_number',
+    'patient_id',
+    'admission_id',
+    'service_code',
+    'scheduled_date',
+    'operating_room',
+  ],
 } as const satisfies Record<ImportTarget, readonly string[]>;
 
 export const IMPORT_LIMITS = {

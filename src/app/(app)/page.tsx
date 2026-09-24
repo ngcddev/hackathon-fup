@@ -1,5 +1,5 @@
-import { ResumenView } from '@/components/views/ResumenView';
+import { SummaryView } from '@/components/views/SummaryView';
 
-export default function ResumenPage() {
-  return <ResumenView />;
+export default function SummaryPage() {
+  return <SummaryView />;
 }

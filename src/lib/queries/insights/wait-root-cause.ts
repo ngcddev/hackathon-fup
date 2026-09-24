@@ -1,10 +1,5 @@
 import { queryAsAppBackend } from '@/lib/db';
-import type {
-  IsoDate,
-  WaitOverall,
-  WaitRootCauseResponse,
-  WaitRootCauseSegment,
-} from '@/lib/types/api';
+import type { IsoDate, WaitOverall, WaitRootCauseResponse, WaitRootCauseSegment } from '@/lib/types/api';
 import { weekdayName, SHIFT_LABEL, type ShiftKey } from './labels';
 
 // D7, causa raíz de los tiempos de espera.

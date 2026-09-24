@@ -44,13 +44,10 @@ describe('matchPlanB: las 10 adicionales', () => {
 });
 
 describe('matchPlanB: sin coincidencia', () => {
-  it.each([
-    '¿Cuál es la capital de Francia?',
-    'hola',
-    '¿Cuántos médicos hay de turno?',
-    'cirugías',
-    '',
-  ])('no responde: %s', (q) => expect(matchPlanB(q)).toBeNull());
+  it.each(['¿Cuál es la capital de Francia?', 'hola', '¿Cuántos médicos hay de turno?', 'cirugías', ''])(
+    'no responde: %s',
+    (q) => expect(matchPlanB(q)).toBeNull(),
+  );
 });
 
 describe('respuestas (AGE-06): empiezan con el dato principal', () => {

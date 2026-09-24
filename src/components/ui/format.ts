@@ -7,7 +7,20 @@ export const fmtInt = (n: number) => nf0.format(n);
 export const fmtNum = (n: number) => nf1.format(n);
 export const fmtPct = (n: number) => `${nf1.format(n)} %`;
 
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MONTHS = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 export const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -73,7 +86,8 @@ export function prettyName(name: string): string {
       const upper = word.toUpperCase();
       if (i > 0 && LOWER.has(upper)) return word.toLowerCase();
       if (ACCENTED[upper]) return ACCENTED[upper];
-      if (upper.length > 4 && upper.endsWith('CION')) return `${word.charAt(0).toUpperCase()}${word.slice(1, -4).toLowerCase()}ción`;
+      if (upper.length > 4 && upper.endsWith('CION'))
+        return `${word.charAt(0).toUpperCase()}${word.slice(1, -4).toLowerCase()}ción`;
       return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
     })
     .join(' ');

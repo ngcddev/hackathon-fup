@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearDecisionCache, generateSqlWithLlm, resetProviderPause } from './llm';
 
-const SQL_JSON = JSON.stringify({ type: 'sql', sql: 'SELECT 1 AS n FROM agent.v_admissions LIMIT 1', answer_template: 'Hay {n}' });
+const SQL_JSON = JSON.stringify({
+  type: 'sql',
+  sql: 'SELECT 1 AS n FROM agent.v_admissions LIMIT 1',
+  answer_template: 'Hay {n}',
+});
 
 function mockProviders(geminiStatus: number) {
   const calls = { gemini: 0, groq: 0 };

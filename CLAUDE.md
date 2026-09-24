@@ -67,6 +67,7 @@ Si una carpeta no está en la tabla, pregunta antes de editar. Un cambio en una 
 
 - `npx tsc --noEmit` compila sin errores.
 - `npm run lint` sin errores ni advertencias nuevas.
+- `npm run format:check` sin diferencias.
 - Sin secretos en el código ni en el bundle del cliente.
 - Cada endpoint aplica su permiso con `withAuth` y responde errores con el formato único.
 - Si cambia el contrato, se actualizan `docs/api-contract.md`, `src/lib/types/api.ts` y los mocks en el mismo PR.

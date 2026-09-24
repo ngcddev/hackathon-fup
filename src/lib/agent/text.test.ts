@@ -7,7 +7,9 @@ describe('normalizeQuestion', () => {
   });
 
   it('conserva lo que da sentido a los números', () => {
-    expect(normalizeQuestion('¿Medicamentos con menos de 5,5 días? (10%)')).toBe('medicamentos con menos de 5,5 dias 10%');
+    expect(normalizeQuestion('¿Medicamentos con menos de 5,5 días? (10%)')).toBe(
+      'medicamentos con menos de 5,5 dias 10%',
+    );
     expect(normalizeQuestion('Ingresos del grupo 0-4.')).toBe('ingresos del grupo 0-4');
   });
 

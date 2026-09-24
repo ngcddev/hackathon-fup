@@ -13,8 +13,20 @@ import { EntityView } from './EntityView';
 const columns: Column<CriticalDrug>[] = [
   { key: 'code', label: 'Código', mono: true, value: (d) => d.item_code },
   { key: 'name', label: 'Nombre', bold: true, value: (d) => d.item_name },
-  { key: 'stock', label: 'Stock actual', align: 'right', value: (d) => d.current_stock, render: (d) => fmtInt(d.current_stock) },
-  { key: 'use', label: 'Consumo diario', align: 'right', value: (d) => d.avg_daily_consumption, render: (d) => fmtNum(d.avg_daily_consumption) },
+  {
+    key: 'stock',
+    label: 'Stock actual',
+    align: 'right',
+    value: (d) => d.current_stock,
+    render: (d) => fmtInt(d.current_stock),
+  },
+  {
+    key: 'use',
+    label: 'Consumo diario',
+    align: 'right',
+    value: (d) => d.avg_daily_consumption,
+    render: (d) => fmtNum(d.avg_daily_consumption),
+  },
   {
     key: 'days',
     label: 'Días de inventario',
@@ -54,7 +66,10 @@ function Rotation({ title, items }: { title: string; items: DrugRotationItem[] }
         <span className="text-sm text-muted">unidades dispensadas</span>
       </div>
       {items.map((item, i) => (
-        <div key={item.item_code} className="grid grid-cols-[24px_minmax(0,1.6fr)_minmax(0,1fr)_72px] items-center gap-3">
+        <div
+          key={item.item_code}
+          className="grid grid-cols-[24px_minmax(0,1.6fr)_minmax(0,1fr)_72px] items-center gap-3"
+        >
           <span className="text-sm font-bold text-muted">{i + 1}</span>
           <span className="truncate text-[15px] font-semibold" title={item.item_name}>
             {item.item_name}
@@ -67,7 +82,7 @@ function Rotation({ title, items }: { title: string; items: DrugRotationItem[] }
   );
 }
 
-function Estado({ data }: { data: KpisResponse }) {
+function DrugsStatus({ data }: { data: KpisResponse }) {
   const drugs = data.critical_drugs;
   const rotation = data.drug_rotation;
   const photo = drugs.items[0]?.stock_date;
@@ -89,7 +104,9 @@ function Estado({ data }: { data: KpisResponse }) {
       </div>
 
       {drugs.items.length === 0 ? (
-        <EmptyState title="No hay medicamentos con stock crítico">Todos tienen más de {drugs.threshold_days} días de inventario.</EmptyState>
+        <EmptyState title="No hay medicamentos con stock crítico">
+          Todos tienen más de {drugs.threshold_days} días de inventario.
+        </EmptyState>
       ) : (
         <DataTable
           title={`Medicamentos con menos de ${drugs.threshold_days} días de inventario`}
@@ -114,10 +131,13 @@ function Estado({ data }: { data: KpisResponse }) {
   );
 }
 
-export function MedicamentosView() {
+export function DrugsView() {
   return (
-    <EntityView target="drug_stock" note="Una foto nueva no reemplaza la anterior; revertir el lote restaura la foto previa.">
-      <KpiGate label="medicamentos">{(data) => <Estado data={data} />}</KpiGate>
+    <EntityView
+      target="drug_stock"
+      note="Una foto nueva no reemplaza la anterior; revertir el lote restaura la foto previa."
+    >
+      <KpiGate label="medicamentos">{(data) => <DrugsStatus data={data} />}</KpiGate>
     </EntityView>
   );
 }

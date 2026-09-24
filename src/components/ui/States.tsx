@@ -22,7 +22,10 @@ export function LoadingState({ label }: { label: string }) {
 
 export function ErrorState({ label, message, onRetry }: { label: string; message?: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="flex flex-col items-center gap-3.5 rounded-2xl border border-line bg-white px-6 py-16 text-center">
+    <div
+      role="alert"
+      className="flex flex-col items-center gap-3.5 rounded-2xl border border-line bg-white px-6 py-16 text-center"
+    >
       <Icon name="info" size={40} strokeWidth={1.5} className="text-navy" />
       <div className="text-[22px] font-bold">No pudimos cargar {label}</div>
       <div className="max-w-[520px] text-base leading-normal text-muted">
@@ -44,7 +47,7 @@ export function ErrorState({ label, message, onRetry }: { label: string; message
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3.5 rounded-2xl border-[1.5px] border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-      <Icon name="fuentes" size={40} strokeWidth={1.5} className="text-muted" />
+      <Icon name="sources" size={40} strokeWidth={1.5} className="text-muted" />
       <div className="text-[22px] font-bold">{title}</div>
       {children && <div className="max-w-[520px] text-base leading-normal text-muted">{children}</div>}
     </div>

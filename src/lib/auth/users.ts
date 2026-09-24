@@ -42,7 +42,10 @@ export function assertUserId(value: string): void {
 
 export function assertPassword(value: unknown): string {
   if (typeof value !== 'string' || value.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError('VALIDATION_ERROR', `La contraseña temporal debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      `La contraseña temporal debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+    );
   }
   return value;
 }
@@ -69,7 +72,8 @@ export function parseUpdateUser(body: unknown): { role?: Role; is_active?: boole
     result.role = b.role;
   }
   if (b.is_active !== undefined) {
-    if (typeof b.is_active !== 'boolean') throw new ApiError('VALIDATION_ERROR', 'is_active debe ser verdadero o falso.');
+    if (typeof b.is_active !== 'boolean')
+      throw new ApiError('VALIDATION_ERROR', 'is_active debe ser verdadero o falso.');
     result.is_active = b.is_active;
   }
   if (result.role === undefined && result.is_active === undefined) {
@@ -173,7 +177,9 @@ export async function createUser(
     return toSummary(profile, input.email);
   } catch (err) {
     // Sin perfil la cuenta de Auth queda huérfana: se borra para poder reintentar con el mismo correo.
-    await admin.auth.admin.deleteUser(userId).catch((e) => console.error('[users] No se pudo deshacer la cuenta de Auth:', e));
+    await admin.auth.admin
+      .deleteUser(userId)
+      .catch((e) => console.error('[users] No se pudo deshacer la cuenta de Auth:', e));
     throw err;
   }
 }

@@ -34,10 +34,7 @@ describe('redactQuestionForLog', () => {
 
 describe('stripPatientKey', () => {
   it('quita la columna aunque la consulta la haya seleccionado', () => {
-    const out = stripPatientKey(
-      ['service', 'patient_key', 'n'],
-      [{ service: 'A', patient_key: 'abc', n: 1 }],
-    );
+    const out = stripPatientKey(['service', 'patient_key', 'n'], [{ service: 'A', patient_key: 'abc', n: 1 }]);
     expect(out.columns).toEqual(['service', 'n']);
     expect(out.rows).toEqual([{ service: 'A', n: 1 }]);
   });

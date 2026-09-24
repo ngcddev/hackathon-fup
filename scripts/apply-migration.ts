@@ -21,7 +21,10 @@ async function main() {
   const parsed = new URL(url);
   parsed.searchParams.delete('sslmode');
   const isLocal = ['localhost', '127.0.0.1'].includes(parsed.hostname);
-  const client = new Client({ connectionString: parsed.toString(), ssl: isLocal ? false : { rejectUnauthorized: false } });
+  const client = new Client({
+    connectionString: parsed.toString(),
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+  });
   await client.connect();
   try {
     await client.query('BEGIN');

@@ -13,9 +13,7 @@ import type { KpiAlert, KpisResponse, SourcesResponse } from '@/lib/types/api';
 import { ALERT_ROUTE, ALERT_TYPE_LABEL } from './alerts-meta';
 
 // Las 4 preguntas de la demo (mismas del plan B del agente) que se escriben solas en el buscador.
-export const SUGGESTED_QUESTIONS = [
-  '¿Cuál es el tiempo de espera promedio en urgencias en la última semana?',
-];
+export const SUGGESTED_QUESTIONS = ['¿Cuál es el tiempo de espera promedio en urgencias en la última semana?'];
 
 function greeting(hour: number) {
   return hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
@@ -76,7 +74,7 @@ function tiles(data: KpisResponse): KpiTile[] {
       label: 'Ocupación de camas',
       value: fmtPct(occ.occupancy_pct),
       sub: `${fmtInt(occ.occupied_beds)} ocupadas / ${fmtInt(occ.capacity)} camas`,
-      href: '/camas',
+      href: '/beds',
       link: 'camas',
       origin: capacitySimulated ? 'Simulado' : 'Derivado',
     },
@@ -84,7 +82,7 @@ function tiles(data: KpisResponse): KpiTile[] {
       label: 'Espera en urgencias',
       value: `${fmtNum(data.emergency_wait.avg_wait_minutes)} min`,
       sub: 'promedio, última semana',
-      href: '/pacientes',
+      href: '/patients',
       link: 'pacientes',
       origin: 'Derivado',
     },
@@ -92,7 +90,7 @@ function tiles(data: KpisResponse): KpiTile[] {
       label: 'Medicamentos críticos',
       value: fmtInt(data.critical_drugs.count),
       sub: `con menos de ${data.critical_drugs.threshold_days} días de inventario`,
-      href: '/medicamentos',
+      href: '/drugs',
       link: 'medicamentos',
       origin: data.critical_drugs.includes_simulated_data ? 'Simulado' : undefined,
     },
@@ -100,7 +98,7 @@ function tiles(data: KpisResponse): KpiTile[] {
       label: 'Cumplimiento quirúrgico',
       value: `${fmtNum(data.surgeries.compliance_pct)} %`,
       sub: `sobre ${fmtInt(data.surgeries.universe_total)} programaciones`,
-      href: '/cirugias',
+      href: '/surgeries',
       link: 'cirugías',
       origin: 'Derivado',
     },
@@ -108,7 +106,7 @@ function tiles(data: KpisResponse): KpiTile[] {
       label: 'Ingresos del periodo',
       value: fmtInt(admissions),
       sub: `${fmtDate(data.demand.period_start)} – ${fmtDate(data.demand.period_end)}`,
-      href: '/pacientes',
+      href: '/patients',
       link: 'ingresos',
     },
   ];
@@ -125,8 +123,24 @@ function TrendMini({ days }: { days: { day: string; occupancy_pct: number }[] })
   const last = days[days.length - 1];
   return (
     <>
-      <svg viewBox="0 0 600 120" preserveAspectRatio="none" width="100%" height="120" className="block" role="img" aria-label="Ocupación de los últimos 30 días">
-        <line x1="0" x2="600" y1={y(85)} y2={y(85)} stroke="#64748B" strokeDasharray="6 5" vectorEffect="non-scaling-stroke" />
+      <svg
+        viewBox="0 0 600 120"
+        preserveAspectRatio="none"
+        width="100%"
+        height="120"
+        className="block"
+        role="img"
+        aria-label="Ocupación de los últimos 30 días"
+      >
+        <line
+          x1="0"
+          x2="600"
+          y1={y(85)}
+          y2={y(85)}
+          stroke="#64748B"
+          strokeDasharray="6 5"
+          vectorEffect="non-scaling-stroke"
+        />
         <path d={`${line} L600,120 L0,120 Z`} fill="rgba(76,140,35,0.12)" />
         <path d={line} fill="none" stroke="#4C8C23" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
       </svg>
@@ -169,7 +183,9 @@ function DataStatus() {
       <div className="grid grid-cols-3 gap-3.5">
         <div>
           <div className="text-sm font-semibold text-muted">Última carga aplicada</div>
-          <div className="mt-1 text-xl font-extrabold">{value(data?.last_load_at ? fmtDate(data.last_load_at) : undefined)}</div>
+          <div className="mt-1 text-xl font-extrabold">
+            {value(data?.last_load_at ? fmtDate(data.last_load_at) : undefined)}
+          </div>
         </div>
         <div>
           <div className="text-sm font-semibold text-muted">Datos simulados</div>
@@ -177,18 +193,20 @@ function DataStatus() {
         </div>
         <div>
           <div className="text-sm font-semibold text-muted">Cargas con problemas</div>
-          <div className="mt-1 text-xl font-extrabold">{value(problems === undefined ? undefined : fmtInt(problems))}</div>
+          <div className="mt-1 text-xl font-extrabold">
+            {value(problems === undefined ? undefined : fmtInt(problems))}
+          </div>
         </div>
       </div>
       {error && <div className="text-sm text-muted">El estado de las fuentes no está disponible por ahora.</div>}
-      <Link href="/fuentes" className="text-[15px] font-bold">
+      <Link href="/sources" className="text-[15px] font-bold">
         Revisar fuentes de datos →
       </Link>
     </Card>
   );
 }
 
-export function ResumenView() {
+export function SummaryView() {
   const router = useRouter();
   const { me, roleLabel, can } = useSession();
   const [query, setQuery] = useState('');
@@ -202,7 +220,7 @@ export function ResumenView() {
   }, []);
 
   const ask = (question: string) => {
-    if (question.trim()) router.push(`/agente?q=${encodeURIComponent(question.trim())}&send=1&n=${Date.now()}`);
+    if (question.trim()) router.push(`/agent?q=${encodeURIComponent(question.trim())}&send=1&n=${Date.now()}`);
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -213,7 +231,8 @@ export function ResumenView() {
     <KpiGate label="el resumen">
       {(data) => {
         const trend = data.occupancy_trend?.days ?? [];
-        const delta = trend.length >= 2 ? trend[trend.length - 1].occupancy_pct - trend[trend.length - 2].occupancy_pct : null;
+        const delta =
+          trend.length >= 2 ? trend[trend.length - 1].occupancy_pct - trend[trend.length - 2].occupancy_pct : null;
         return (
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
@@ -247,7 +266,9 @@ export function ResumenView() {
             {can('agent:query') && (
               <Card className="flex flex-col gap-3 px-5 py-4">
                 <form onSubmit={submit} className="flex flex-wrap items-center gap-2.5">
-                  <span className="flex items-center gap-2 whitespace-nowrap text-[15px] font-bold text-navy">Pregúntale a Healthy</span>
+                  <span className="flex items-center gap-2 whitespace-nowrap text-[15px] font-bold text-navy">
+                    Pregúntale a Healthy
+                  </span>
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -282,7 +303,9 @@ export function ResumenView() {
                     <span className="text-[15px] font-semibold text-muted">{k.label}</span>
                     {k.origin && <OriginBadge origin={k.origin} />}
                   </div>
-                  <div className="text-[32px] font-extrabold sm:text-[40px] leading-[1.1] tracking-tight">{k.value}</div>
+                  <div className="text-[32px] font-extrabold sm:text-[40px] leading-[1.1] tracking-tight">
+                    {k.value}
+                  </div>
                   <span className="text-sm text-muted">{k.sub}</span>
                   <span className="mt-1.5 text-sm font-bold">Ver {k.link} →</span>
                 </Link>
@@ -293,7 +316,7 @@ export function ResumenView() {
               <Card className="flex flex-col gap-3.5 p-4 sm:p-6">
                 <div className="flex items-baseline justify-between gap-3">
                   <h3 className="m-0 text-[21px] font-bold">Alertas prioritarias</h3>
-                  <Link href="/alertas" className="text-[15px] font-bold">
+                  <Link href="/alerts" className="text-[15px] font-bold">
                     Ver todas
                   </Link>
                 </div>

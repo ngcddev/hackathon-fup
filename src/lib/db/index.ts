@@ -62,9 +62,7 @@ export async function runAgentQuery(sql: string): Promise<AgentQueryResult> {
 }
 
 // Escritura del importador con el rol importer: BEGIN, COMMIT y ROLLBACK ante cualquier error.
-export async function withImporterTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function withImporterTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   let client: PoolClient | undefined;
   let broken = false;
   try {

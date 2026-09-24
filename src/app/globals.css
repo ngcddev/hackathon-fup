@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Tokens del diseño (Hospital Susana López de Valencia): navy institucional, verde hoja y semánticos. */
 @theme inline {

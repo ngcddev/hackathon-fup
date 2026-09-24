@@ -18,25 +18,25 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: '/', label: 'Resumen', icon: 'resumen' },
-  { href: '/agente', label: 'Agente IA', icon: 'agente', permission: 'agent:query' },
-  { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
-  { href: '/camas', label: 'Camas', icon: 'camas' },
-  { href: '/medicamentos', label: 'Medicamentos', icon: 'medicamentos' },
-  { href: '/cirugias', label: 'Cirugías', icon: 'cirugias' },
-  { href: '/alertas', label: 'Alertas', icon: 'alertas' },
-  { href: '/fuentes', label: 'Fuentes de datos', icon: 'fuentes', permission: 'sources:view' },
-  { href: '/usuarios', label: 'Usuarios', icon: 'usuarios', permission: 'users:manage' },
-  { href: '/registro', label: 'Registro de actividad', icon: 'registro', permission: 'logs:view' },
+  { href: '/', label: 'Resumen', icon: 'summary' },
+  { href: '/agent', label: 'Agente IA', icon: 'agent', permission: 'agent:query' },
+  { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
+  { href: '/beds', label: 'Camas', icon: 'beds' },
+  { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
+  { href: '/surgeries', label: 'Cirugías', icon: 'surgeries' },
+  { href: '/alerts', label: 'Alertas', icon: 'alerts' },
+  { href: '/sources', label: 'Fuentes de datos', icon: 'sources', permission: 'sources:view' },
+  { href: '/users', label: 'Usuarios', icon: 'users', permission: 'users:manage' },
+  { href: '/logs', label: 'Registro de actividad', icon: 'logs', permission: 'logs:view' },
 ];
 
 // Pregunta sugerida al abrir el agente desde el encabezado, según la pantalla actual.
 const CONTEXT_QUESTION: Record<string, string> = {
-  '/pacientes': '¿Cuál es el tiempo de espera promedio en urgencias en la última semana?',
-  '/camas': '¿Cuál es la ocupación de camas por servicio hoy?',
-  '/medicamentos': '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
-  '/cirugias': '¿Cuál es el cumplimiento quirúrgico por mes?',
-  '/alertas': '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
+  '/patients': '¿Cuál es el tiempo de espera promedio en urgencias en la última semana?',
+  '/beds': '¿Cuál es la ocupación de camas por servicio hoy?',
+  '/drugs': '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
+  '/surgeries': '¿Cuál es el cumplimiento quirúrgico por mes?',
+  '/alerts': '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
 };
 
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
@@ -67,8 +67,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const askAi = () => {
-    const question = service !== ALL_HOSPITAL && pathname.startsWith('/camas') ? `¿Cuál es la ocupación de ${prettyName(service)} hoy?` : (CONTEXT_QUESTION[pathname] ?? '');
-    router.push(`/agente?q=${encodeURIComponent(question)}&n=${Date.now()}`);
+    const question =
+      service !== ALL_HOSPITAL && pathname.startsWith('/beds')
+        ? `¿Cuál es la ocupación de ${prettyName(service)} hoy?`
+        : (CONTEXT_QUESTION[pathname] ?? '');
+    router.push(`/agent?q=${encodeURIComponent(question)}&n=${Date.now()}`);
   };
 
   const showBanner = !online || stale;
@@ -105,12 +108,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-[11px] text-base no-underline hover:brightness-95',
-                  active ? 'bg-navy font-bold text-white hover:text-white' : 'bg-white font-medium text-ink hover:text-ink',
+                  active
+                    ? 'bg-navy font-bold text-white hover:text-white'
+                    : 'bg-white font-medium text-ink hover:text-ink',
                 )}
               >
                 <Icon name={n.icon} size={20} className="shrink-0" />
                 <span className="flex-1">{n.label}</span>
-                {n.href === '/alertas' && critical > 0 && (
+                {n.href === '/alerts' && critical > 0 && (
                   <span
                     aria-label="alertas críticas"
                     className="flex h-6 min-w-[26px] items-center justify-center rounded-full border border-danger-line bg-danger-bg px-2 text-[13px] font-extrabold text-danger"
@@ -125,7 +130,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="flex flex-col gap-3 border-t border-line px-[18px] py-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-navy text-sm font-bold">{initials}</div>
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-navy text-sm font-bold">
+              {initials}
+            </div>
             <div className="min-w-0 leading-snug">
               <div className="truncate text-[15px] font-bold">{me.full_name}</div>
               <div className="text-sm text-muted">{roleLabel}</div>
@@ -144,9 +151,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {showBanner && (
-          <div role="status" className="flex items-center justify-center gap-2.5 border-b border-line bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+          <div
+            role="status"
+            className="flex items-center justify-center gap-2.5 border-b border-line bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700"
+          >
             <Icon name="offline" size={16} strokeWidth={2} />
-            {stale && data ? `Sin conexión, datos del ${fmtDateTime(data.generated_at)}` : 'Sin conexión. Algunas funciones no están disponibles.'}
+            {stale && data
+              ? `Sin conexión, datos del ${fmtDateTime(data.generated_at)}`
+              : 'Sin conexión. Algunas funciones no están disponibles.'}
           </div>
         )}
         <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-line bg-white px-4 py-3 sm:gap-4 sm:px-5 sm:py-3.5 lg:px-8">
@@ -159,8 +171,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Icon name="menu" size={22} strokeWidth={2} />
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="m-0 truncate text-[22px] font-extrabold leading-tight tracking-tight sm:text-[28px]">{current.label}</h1>
-            <div className="mt-0.5 truncate text-sm font-medium text-muted">{data ? `Datos al ${fmtDate(data.reference_date)}` : 'Cargando datos…'}</div>
+            <h1 className="m-0 truncate text-[22px] font-extrabold leading-tight tracking-tight sm:text-[28px]">
+              {current.label}
+            </h1>
+            <div className="mt-0.5 truncate text-sm font-medium text-muted">
+              {data ? `Datos al ${fmtDate(data.reference_date)}` : 'Cargando datos…'}
+            </div>
           </div>
           <label className="relative order-last flex h-11 basis-full items-center gap-2 rounded-lg border border-line bg-canvas pl-3 text-[13px] font-semibold text-muted sm:order-none sm:-mr-1.5 sm:h-auto sm:basis-auto sm:gap-1 sm:border-0 sm:bg-transparent sm:pl-0">
             <span>Servicio:</span>
@@ -176,7 +192,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </option>
               ))}
             </select>
-            <Icon name="chevron" size={14} strokeWidth={2.6} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-navy sm:right-2" />
+            <Icon
+              name="chevron"
+              size={14}
+              strokeWidth={2.6}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-navy sm:right-2"
+            />
           </label>
           {can('agent:query') && (
             <button
@@ -185,7 +206,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label="Preguntar a la IA"
               className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-leaf px-3 text-[15px] font-bold text-white hover:bg-forest sm:gap-2.5 sm:px-5"
             >
-              <Icon name="agente" />
+              <Icon name="agent" />
               <span className="sm:hidden">IA</span>
               <span className="hidden sm:inline">Preguntar a la IA</span>
             </button>
