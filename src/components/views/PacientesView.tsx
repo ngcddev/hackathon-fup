@@ -17,7 +17,7 @@ function ArrivalsHeatmap() {
   if (loading && !data) return <div className="sgh-pulse h-[260px] rounded-2xl bg-mist" />;
   if (!data) {
     return (
-      <Card className="flex flex-col items-start gap-3 p-6">
+      <Card className="flex flex-col items-start gap-3 p-4 sm:p-6">
         <CardTitle>Llegadas a urgencias por día y hora</CardTitle>
         <div className="text-[15px] text-muted">{error}</div>
         <button type="button" onClick={reload} className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold">
@@ -31,7 +31,7 @@ function ArrivalsHeatmap() {
   const cell = (weekday: number, hour: number) => data.cells.find((c) => c.weekday === weekday && c.hour === hour)?.avg_arrivals ?? 0;
 
   return (
-    <Card className="flex flex-col gap-4 p-6">
+    <Card className="flex flex-col gap-4 p-4 sm:p-6">
       <CardTitle origin="Derivado">Llegadas a urgencias por día y hora</CardTitle>
       <div className="text-[15px] text-muted">
         Promedio de llegadas del {fmtDate(data.period_start)} al {fmtDate(data.period_end)} ({fmtInt(data.days_count)} días, {fmtInt(data.arrivals_total)} llegadas). Más oscuro, más llegadas.
@@ -65,7 +65,7 @@ function ArrivalsHeatmap() {
         </div>
       </div>
       {data.top_slots.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3.5">
           {data.top_slots.map((slot) => (
             <div key={`${slot.weekday}-${slot.hour_start}`} className="flex flex-col gap-1.5 rounded-xl border border-line p-4">
               <div className="text-[15px] font-extrabold text-navy">
@@ -88,7 +88,7 @@ function WaitRootCause() {
   if (loading && !data) return <div className="sgh-pulse h-[200px] rounded-2xl bg-mist" />;
   if (!data) {
     return (
-      <Card className="flex flex-col items-start gap-3 p-6">
+      <Card className="flex flex-col items-start gap-3 p-4 sm:p-6">
         <CardTitle>¿Por qué cambió la espera en urgencias?</CardTitle>
         <div className="text-[15px] text-muted">{error}</div>
         <button type="button" onClick={reload} className="h-10 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-4 text-sm font-bold">
@@ -99,10 +99,10 @@ function WaitRootCause() {
   }
   const { overall } = data;
   return (
-    <Card className="flex flex-col gap-4 p-6">
+    <Card className="flex flex-col gap-4 p-4 sm:p-6">
       <CardTitle origin="Derivado">¿Por qué cambió la espera en urgencias?</CardTitle>
       <p className="m-0 text-base leading-relaxed text-slate-700">{data.summary}</p>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-3.5">
         <div className="rounded-xl border border-line p-4">
           <div className="text-[13px] font-semibold text-muted">
             Última semana ({fmtDate(data.current_period.start)} – {fmtDate(data.current_period.end)})
@@ -125,7 +125,7 @@ function WaitRootCause() {
       {data.top_segments.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-line">
           {data.top_segments.map((s, i) => (
-            <div key={i} className="grid grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(90px,1fr))] items-center gap-3 border-t border-line px-4 py-3 text-[15px] first:border-t-0">
+            <div key={i} className="grid grid-cols-1 items-center gap-1 border-t sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(90px,1fr))] sm:gap-3 border-line px-4 py-3 text-[15px] first:border-t-0">
               <span className="font-bold text-navy">
                 {s.weekday_name} · {s.shift === 'dia' ? 'día' : 'noche'} · {triageLabel(s.triage_level)}
               </span>
@@ -160,7 +160,7 @@ function Estado({ data }: { data: KpisResponse }) {
         Datos agregados y anonimizados. No se muestran nombres, documentos, motivos de consulta ni identificadores de paciente.
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-5">
         <Stat label="Ingresos del periodo" value={fmtInt(total)} sub={`${fmtDate(data.demand.period_start)} – ${fmtDate(data.demand.period_end)}`} />
         <Stat
           label="Estancia promedio"
@@ -183,7 +183,7 @@ function Estado({ data }: { data: KpisResponse }) {
             </span>
             <OriginBadge origin="Derivado" />
           </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2.5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,130px),1fr))] gap-2.5">
             {wait.by_triage_level.map((t) => (
               <div key={String(t.triage_level)} className="flex flex-col gap-0.5 rounded-[10px] border border-line px-3 py-2.5">
                 <span className="text-[13px] font-bold text-muted">{triageLabel(t.triage_level)}</span>
@@ -196,21 +196,21 @@ function Estado({ data }: { data: KpisResponse }) {
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,500px),1fr))] gap-5">
-        <Card className="flex flex-col gap-4 p-6">
+        <Card className="flex flex-col gap-4 p-4 sm:p-6">
           <h3 className="m-0 text-[21px] font-bold">Ingresos por servicio</h3>
           {admissions.length === 0 && <div className="text-[15px] text-muted">Sin ingresos en el periodo.</div>}
           {admissions.map((s) => (
-            <div key={s.service} className="grid grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px] items-center gap-3">
+            <div key={s.service} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]">
               <span className="text-[15px] font-semibold">{prettyName(s.service)}</span>
               <MiniBar pct={(s.admissions_count / maxAdm) * 100} />
               <span className="text-right text-[15px] font-extrabold">{fmtInt(s.admissions_count)}</span>
             </div>
           ))}
         </Card>
-        <Card className="flex flex-col gap-3 p-6">
+        <Card className="flex flex-col gap-3 p-4 sm:p-6">
           <h3 className="m-0 mb-1 text-[21px] font-bold">Servicios prestados por especialidad</h3>
           {specialties.map((s) => (
-            <div key={s.specialty} className="grid grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px] items-center gap-3">
+            <div key={s.specialty} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 sm:grid-cols-[minmax(140px,1fr)_minmax(0,2fr)_64px]">
               <span className="text-[15px] font-semibold">{prettyName(s.specialty)}</span>
               <MiniBar pct={(s.lines_count / maxSpec) * 100} />
               <span className="text-right text-[15px] font-extrabold">{fmtInt(s.lines_count)}</span>

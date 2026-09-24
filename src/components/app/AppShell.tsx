@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-[70] h-screen w-[280px] shrink-0 flex-col border-r border-line bg-white lg:sticky lg:flex',
+          'fixed left-0 top-0 z-[70] h-screen w-[280px] max-w-[85vw] shrink-0 flex-col border-r border-line bg-white lg:sticky lg:flex',
           menuOpen ? 'flex' : 'hidden',
         )}
       >
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {stale && data ? `Sin conexión, datos del ${fmtDateTime(data.generated_at)}` : 'Sin conexión. Algunas funciones no están disponibles.'}
           </div>
         )}
-        <header className="sticky top-0 z-40 flex flex-wrap items-center gap-4 border-b border-line bg-white px-5 py-3.5 lg:px-8">
+        <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-line bg-white px-4 py-3 sm:gap-4 sm:px-5 sm:py-3.5 lg:px-8">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -158,8 +158,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <Icon name="menu" size={22} strokeWidth={2} />
           </button>
-          <div className="min-w-[200px] flex-1">
-            <h1 className="m-0 text-[28px] font-extrabold leading-tight tracking-tight">{current.label}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="m-0 text-[22px] font-extrabold leading-tight sm:text-[28px] tracking-tight">{current.label}</h1>
             <div className="mt-0.5 text-sm font-medium text-muted">{data ? `Datos al ${fmtDate(data.reference_date)}` : 'Cargando datos…'}</div>
           </div>
           <label className="relative -mr-1.5 flex items-center gap-1 text-[13px] font-semibold text-muted">
@@ -182,15 +182,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={askAi}
-              className="flex h-11 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-leaf px-5 text-[15px] font-bold text-white hover:bg-forest"
+              aria-label="Preguntar a la IA"
+              className="flex h-11 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-leaf px-3 text-[15px] sm:px-5 font-bold text-white hover:bg-forest"
             >
               <Icon name="agente" />
-              Preguntar a la IA
+              <span className="hidden sm:inline">Preguntar a la IA</span>
             </button>
           )}
         </header>
 
-        <main className="w-full max-w-[1520px] flex-1 px-5 pb-12 pt-7 lg:px-8">{children}</main>
+        <main className="w-full max-w-[1520px] flex-1 px-4 pb-12 pt-5 sm:px-5 sm:pt-7 lg:px-8">{children}</main>
       </div>
     </div>
   );

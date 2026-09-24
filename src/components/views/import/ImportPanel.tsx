@@ -322,7 +322,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
               {problems.map((b) => (
                 <div
                   key={b.batch_id}
-                  className="grid grid-cols-[minmax(0,1.4fr)_repeat(auto-fit,minmax(110px,1fr))] items-center gap-4 rounded-xl border border-line bg-white px-5 py-[18px]"
+                  className="grid grid-cols-[minmax(0,1.4fr)_repeat(auto-fit,minmax(min(100%,110px),1fr))] items-center gap-4 rounded-xl border border-line bg-white px-5 py-[18px]"
                 >
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <div className="flex flex-wrap items-center gap-2.5">
@@ -540,7 +540,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                 <h4 className="m-0 text-[22px] font-extrabold">3. Mapear columnas</h4>
                 <p className="m-0 text-base leading-relaxed text-slate-700">Asigne cada columna de la plantilla a una columna del archivo. Las que no existan pueden dejarse vacías; el servidor indicará si son obligatorias.</p>
                 <div className="overflow-hidden rounded-xl border border-line">
-                  <div className="grid grid-cols-[1fr_1fr_150px] gap-3 bg-canvas px-[18px] py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] gap-3 bg-canvas px-[18px] py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">
                     <span>Columna de la plantilla</span>
                     <span>Columna del archivo</span>
                     <span>Estado</span>
@@ -548,7 +548,7 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   {template.map((col) => {
                     const value = mapping[col] ?? '';
                     return (
-                      <div key={col} className="grid grid-cols-[1fr_1fr_150px] items-center gap-3 border-t border-line px-[18px] py-2.5">
+                      <div key={col} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] items-center gap-3 border-t border-line px-[18px] py-2.5">
                         <span className="font-mono text-[15px]">{col}</span>
                         <select
                           value={value}
@@ -783,8 +783,8 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
       )}
 
       {confirmRevert && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/55 p-6">
-          <div role="dialog" aria-modal="true" className="flex w-full max-w-[520px] flex-col gap-4 rounded-2xl bg-white p-7 shadow-float">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/55 p-4 sm:p-6">
+          <div role="dialog" aria-modal="true" className="flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-float sm:p-7">
             <h3 className="m-0 text-2xl font-extrabold">¿Revertir el lote {shortId(confirmRevert.batch_id)}?</h3>
             <p className="m-0 text-base leading-relaxed text-slate-700">
               Se retirarán las {fmtInt(confirmRevert.rows_loaded)} filas cargadas desde <span className="font-mono">{confirmRevert.file_name ?? 'el archivo'}</span> y se recalcularán KPIs y alertas.

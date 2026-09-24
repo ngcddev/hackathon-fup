@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 export function LoadingState({ label }: { label: string }) {
   return (
     <div aria-busy="true" className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-5">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="sgh-pulse h-[132px] rounded-2xl bg-mist" />
         ))}

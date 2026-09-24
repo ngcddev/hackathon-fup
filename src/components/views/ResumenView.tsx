@@ -14,10 +14,7 @@ import { ALERT_ROUTE, ALERT_TYPE_LABEL } from './alerts-meta';
 
 // Las 4 preguntas de la demo (mismas del plan B del agente) que se escriben solas en el buscador.
 export const SUGGESTED_QUESTIONS = [
-  '¿Cuántas camas de UCI están ocupadas hoy?',
-  '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
   '¿Cuál es el tiempo de espera promedio en urgencias en la última semana?',
-  '¿Qué servicio tiene más pacientes ingresados este mes?',
 ];
 
 function greeting(hour: number) {
@@ -167,7 +164,7 @@ function DataStatus() {
   const problems = data?.batches.filter((b) => b.status === 'rejected').length;
   const value = (v: string | undefined) => (loading ? '…' : (v ?? '—'));
   return (
-    <Card className="flex flex-col gap-3.5 p-6">
+    <Card className="flex flex-1 flex-col gap-3.5 p-4 sm:p-6">
       <h3 className="m-0 text-[21px] font-bold">Estado de los datos</h3>
       <div className="grid grid-cols-3 gap-3.5">
         <div>
@@ -221,7 +218,7 @@ export function ResumenView() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
               <div className="min-w-0">
-                <h2 className="m-0 text-[28px] font-extrabold tracking-tight text-navy">
+                <h2 className="m-0 text-[22px] font-extrabold tracking-tight text-navy sm:text-[28px]">
                   {now ? greeting(now.getHours()) : 'Hola'}, {me.full_name}
                 </h2>
                 <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[15px] text-muted">
@@ -262,7 +259,7 @@ export function ResumenView() {
                     }}
                     placeholder={typed + (query ? '' : '▏')}
                     aria-label="Pregunta para la IA"
-                    className="h-11 min-w-[240px] flex-1 rounded-full border border-line bg-canvas px-[18px] text-[15px] outline-none focus:border-leaf focus:bg-white focus:shadow-[0_0_0_3px_rgba(76,140,35,0.2)]"
+                    className="h-11 min-w-0 flex-1 basis-full rounded-full sm:min-w-[240px] sm:basis-0 border border-line bg-canvas px-[18px] text-[15px] outline-none focus:border-leaf focus:bg-white focus:shadow-[0_0_0_3px_rgba(76,140,35,0.2)]"
                   />
                   <button
                     type="submit"
@@ -274,7 +271,7 @@ export function ResumenView() {
               </Card>
             )}
 
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
               {tiles(data).map((k) => (
                 <Link
                   key={k.label}
@@ -285,15 +282,15 @@ export function ResumenView() {
                     <span className="text-[15px] font-semibold text-muted">{k.label}</span>
                     {k.origin && <OriginBadge origin={k.origin} />}
                   </div>
-                  <div className="text-[40px] font-extrabold leading-[1.1] tracking-tight">{k.value}</div>
+                  <div className="text-[32px] font-extrabold sm:text-[40px] leading-[1.1] tracking-tight">{k.value}</div>
                   <span className="text-sm text-muted">{k.sub}</span>
                   <span className="mt-1.5 text-sm font-bold">Ver {k.link} →</span>
                 </Link>
               ))}
             </div>
 
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] items-start gap-5">
-              <Card className="flex flex-col gap-3.5 p-6">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-5">
+              <Card className="flex flex-col gap-3.5 p-4 sm:p-6">
                 <div className="flex items-baseline justify-between gap-3">
                   <h3 className="m-0 text-[21px] font-bold">Alertas prioritarias</h3>
                   <Link href="/alertas" className="text-[15px] font-bold">
@@ -301,14 +298,14 @@ export function ResumenView() {
                   </Link>
                 </div>
                 {data.alerts.length === 0 && <div className="text-[15px] text-muted">No hay alertas activas.</div>}
-                {data.alerts.slice(0, 3).map((a) => (
+                {data.alerts.slice(0, 2).map((a) => (
                   <AlertCard key={a.id} alert={a} />
                 ))}
               </Card>
 
               <div className="flex flex-col gap-5">
                 {trend.length > 1 && (
-                  <Card className="flex flex-col gap-3 p-6">
+                  <Card className="flex flex-col gap-3 p-4 sm:p-6">
                     <CardTitle origin="Derivado">Ocupación · últimos 30 días</CardTitle>
                     <TrendMini days={trend} />
                   </Card>

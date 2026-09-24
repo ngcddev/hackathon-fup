@@ -85,7 +85,7 @@ function EstadoCamas({ data }: { data: KpisResponse }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,230px),1fr))] gap-5">
         <Stat label="Ocupación total" value={fmtPct(total.occupancy_pct)} origin="Derivado">
           <ProgressBar pct={total.occupancy_pct} className="mt-1.5" />
         </Stat>
@@ -103,31 +103,46 @@ function EstadoCamas({ data }: { data: KpisResponse }) {
         <Stat label={`Crítico (≥ ${OCCUPANCY_THRESHOLDS.critical_pct} %)`} value={criticals} sub="subservicios" tone="danger" />
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,520px),1fr))] items-start gap-5">
-        <Card className="flex flex-col gap-5 p-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {/* En dos columnas, h-0 + min-h-full hace que la tarjeta tome la altura de la columna derecha sin empujarla; el resto va con scroll. */}
+        <Card className="flex flex-col gap-4 p-4 sm:p-6 xl:h-0 xl:min-h-full">
           <CardTitle origin="Derivado">Ocupación por servicio y subservicio</CardTitle>
-          {groupBySubservice(data).map(({ service, subs: list }) => (
-            <div key={service.service} className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between border-b border-line pb-1.5">
-                <span className="text-base font-extrabold">{prettyName(service.service)}</span>
-                <span className="whitespace-nowrap text-[15px] font-bold">
-                  {fmtPct(service.occupancy_pct)}{' '}
-                  <span className="font-medium text-muted">
-                    · {fmtInt(service.occupied_beds)}/{fmtInt(service.capacity)}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 xl:-mr-3 xl:overflow-y-auto xl:pr-3 xl:*:my-auto">
+          {groupBySubservice(data).map(({ service, subs: list }) => {
+            const worst = list.some((s) => severityOf(s.occupancy_pct) === 'critical')
+              ? 'critical'
+              : list.some((s) => severityOf(s.occupancy_pct) === 'warning')
+                ? 'warning'
+                : null;
+            return (
+            <details key={service.service} className="group">
+              <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 border-b border-line pb-1.5 [&::-webkit-details-marker]:hidden">
+                <span aria-hidden className="inline-block text-muted transition-transform group-open:rotate-90">▸</span>
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-base font-extrabold">{prettyName(service.service)}</span>
+                  <span className="text-sm text-muted">({list.length})</span>
+                  {worst && <SeverityBadge severity={worst} small />}
+                </span>
+                <span className="flex flex-col items-end text-[15px] font-bold sm:flex-row sm:items-baseline sm:gap-1 sm:whitespace-nowrap">
+                  {fmtPct(service.occupancy_pct)}
+                  <span className="text-sm font-medium text-muted sm:text-[15px]">
+                    <span className="hidden sm:inline">· </span>
+                    {fmtInt(service.occupied_beds)}/{fmtInt(service.capacity)}
                   </span>
                 </span>
-              </div>
+              </summary>
+              <div className="flex flex-col gap-3 pt-3">
               {list.map((s) => {
                 const sev = severityOf(s.occupancy_pct);
                 return (
-                  <div key={s.subservice} className="grid grid-cols-[minmax(140px,1.1fr)_minmax(0,2fr)_minmax(190px,auto)] items-center gap-3.5">
+                  <div key={s.subservice} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-2 sm:grid-cols-[minmax(140px,1.1fr)_minmax(0,2fr)_minmax(190px,auto)]">
                     <div className="flex min-w-0 flex-col gap-1">
                       <span className="text-[15px] font-semibold">{prettyName(s.subservice)}</span>
                       {s.is_capacity_simulated && (
                         <span className="self-start rounded-full border border-dashed border-slate-500 px-2 py-px text-[11px] font-bold text-muted">Capacidad simulada</span>
                       )}
                     </div>
-                    <div className="relative h-3.5 overflow-hidden rounded-full bg-mist">
+                    <div className="relative col-span-2 row-start-2 h-3.5 overflow-hidden rounded-full bg-mist sm:col-span-1 sm:row-start-auto">
                       <div className="h-full rounded-full bg-navy" style={{ width: `${Math.min(100, s.occupancy_pct)}%` }} />
                       <span className="absolute inset-y-0 w-0.5 bg-white" style={{ left: `${OCCUPANCY_THRESHOLDS.warning_pct}%` }} />
                     </div>
@@ -143,13 +158,16 @@ function EstadoCamas({ data }: { data: KpisResponse }) {
                   </div>
                 );
               })}
-            </div>
-          ))}
+              </div>
+            </details>
+            );
+          })}
+          </div>
         </Card>
 
         <div className="flex flex-col gap-5">
           {trend.length > 1 && (
-            <Card className="flex flex-col gap-4 p-6">
+            <Card className="flex flex-col gap-4 p-4 sm:p-6">
               <CardTitle origin="Derivado">Ocupación diaria · últimos 30 días</CardTitle>
               <TrendChart days={trend} />
               <div className="text-sm text-muted">
@@ -158,15 +176,17 @@ function EstadoCamas({ data }: { data: KpisResponse }) {
             </Card>
           )}
           {stay.length > 0 && (
-            <Card className="flex flex-col gap-3.5 p-6">
+            <Card className="flex flex-1 flex-col gap-3.5 p-4 sm:p-6">
               <h3 className="m-0 text-[21px] font-bold">Estancia promedio por servicio</h3>
+              <div className="flex flex-1 flex-col justify-evenly gap-3.5">
               {stay.map((e) => (
-                <div key={e.service} className="grid grid-cols-[minmax(150px,1fr)_minmax(0,2fr)_80px] items-center gap-3.5">
+                <div key={e.service} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_80px] items-center gap-3.5 sm:grid-cols-[minmax(150px,1fr)_minmax(0,2fr)_80px]">
                   <span className="text-[15px] font-semibold">{prettyName(e.service)}</span>
                   <MiniBar pct={(e.avg_stay_days / maxStay) * 100} color="bg-slate-600" />
                   <span className="text-right text-[15px] font-extrabold">{fmtNum(e.avg_stay_days)} días</span>
                 </div>
               ))}
+              </div>
             </Card>
           )}
         </div>
