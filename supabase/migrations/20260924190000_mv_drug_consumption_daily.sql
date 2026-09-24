@@ -6,8 +6,11 @@
 -- del esquema agent la lee con el mismo nombre y las mismas columnas. Solo la carga histórica
 -- cambia core.drug_dispensations; se refresca en core.refresh_materialized_views() después de
 -- mv_item_catalog, de la que depende item_type.
+--
+-- Idempotente y con los mismos nombres de índice que la migración 20260924180000_daily_aggregate_mvs.sql
+-- (PR #32, borrador): las dos se pueden aplicar en cualquier orden sin duplicar objetos.
 
-create materialized view core.mv_drug_consumption_daily as
+create materialized view if not exists core.mv_drug_consumption_daily as
 select d.dispensed_at::date as day, d.item_code, d.item_name, ic.item_type, d.area_name, d.specialty,
       sum(d.quantity)::int as total_quantity
 from core.drug_dispensations d
@@ -15,8 +18,10 @@ left join core.mv_item_catalog ic on ic.item_code = d.item_code
 group by 1, 2, 3, 4, 5, 6;
 
 -- Único para poder refrescar con concurrently; cubre el filtro por día y por ítem y día.
-create unique index on core.mv_drug_consumption_daily (day, item_code, item_name, item_type, area_name, specialty);
-create index on core.mv_drug_consumption_daily (item_code, day);
+create unique index if not exists mv_drug_consumption_daily_day_item_code_item_name_item_type_idx
+  on core.mv_drug_consumption_daily (day, item_code, item_name, item_type, area_name, specialty);
+create index if not exists mv_drug_consumption_daily_item_code_day_idx
+  on core.mv_drug_consumption_daily (item_code, day);
 
 create or replace view agent.v_drug_consumption_daily as
 select day, item_code, item_name, item_type, area_name, specialty, total_quantity
