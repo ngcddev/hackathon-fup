@@ -18,6 +18,12 @@
     "views_used": ["v_drug_inventory"],
     "includes_simulated_data": true,
     "reference_date": "2026-09-21",
-    "duration_ms": 412
+    "duration_ms": 412,
+    "highlights": ["Rango de dias restantes: de 1,8 (Medicamento simulado a) a 4 (Medicamento simulado c); promedio: 2,9."],
+    "notes": [],
+    "follow_up_questions": [
+      "¿Qué medicamentos tienen entre 5 y 10 días de inventario?",
+      "¿Cuáles son los 10 medicamentos más dispensados en los últimos 30 días?"
+    ]
   }
 }

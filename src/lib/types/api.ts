@@ -69,6 +69,10 @@ export interface QueryResponse {
   includes_simulated_data: boolean;
   reference_date: IsoDate;
   duration_ms: number;
+  // Contexto calculado por el servidor a partir de las filas (el LLM nunca las ve).
+  highlights: string[]; // frases con cifras del resultado: total, participación, rango, pico, tendencia
+  notes: string[]; // advertencias de las vistas usadas (datos simulados, umbrales de privacidad…)
+  follow_up_questions: string[]; // hasta 3 preguntas relacionadas para seguir explorando
 }
 
 // ---------------------------------------------------------------- GET /api/kpis

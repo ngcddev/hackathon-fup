@@ -32,7 +32,7 @@ const VIEWS = [
 // Son dimensiones agregadas (clase de ingreso, grupo de edad...), nunca datos de una persona.
 // Si una columna tiene más de MAX_VALUES valores distintos, no se incluye la lista.
 const CATEGORICAL: Record<string, string[]> = {
-  v_admissions: ['admission_class', 'admission_route', 'age_group', 'sex', 'regime'],
+  v_admissions: ['admission_class', 'admission_route', 'age_group', 'sex', 'regime', 'zone'],
   v_bed_occupancy: ['subservice'],
   v_emergency_wait_times: ['triage_classification', 'shift'],
   v_drug_inventory: ['item_type'],

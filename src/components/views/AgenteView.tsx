@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useOnline } from '@/components/app/KpisProvider';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { fmtInt } from '@/components/ui/format';
 import { ClientApiError, apiPost, errorMessage } from '@/lib/api/client';
-import type { QueryCell, QueryRequest, QueryResponse } from '@/lib/types/api';
+import type { AgentView, QueryCell, QueryRequest, QueryResponse } from '@/lib/types/api';
 import { SUGGESTED_QUESTIONS } from './ResumenView';
 
 interface Message {
@@ -19,11 +20,39 @@ interface Message {
 
 const ERROR_TITLE: Partial<Record<string, string>> = {
   SENSITIVE_DATA_REQUESTED: 'No podemos responder esa pregunta',
-  OUT_OF_SCOPE: 'La pregunta está fuera del alcance de los datos',
+  OUT_OF_SCOPE: 'No tengo datos para responder eso',
   AGENT_UNAVAILABLE: 'El asistente no está disponible',
   NETWORK: 'El agente requiere conexión',
   VALIDATION_ERROR: 'La pregunta no es válida',
 };
+
+// Módulo del sistema donde se ven con más detalle los datos de cada vista del agente.
+interface Module {
+  href: string;
+  label: string;
+  icon: IconName;
+}
+
+const MODULE_OF_VIEW: Record<AgentView, Module> = {
+  v_bed_occupancy: { href: '/camas', label: 'Camas', icon: 'camas' },
+  v_admissions: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
+  v_emergency_wait_times: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
+  v_diagnosis_monthly: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
+  v_drug_inventory: { href: '/medicamentos', label: 'Medicamentos', icon: 'medicamentos' },
+  v_drug_consumption_daily: { href: '/medicamentos', label: 'Medicamentos', icon: 'medicamentos' },
+  v_surgeries: { href: '/cirugias', label: 'Cirugías', icon: 'cirugias' },
+  v_service_demand_daily: { href: '/', label: 'Resumen', icon: 'resumen' },
+};
+
+// Un enlace por módulo aunque varias vistas lleven al mismo.
+function relatedModules(views: AgentView[]): Module[] {
+  const byHref = new Map<string, Module>();
+  for (const view of views) {
+    const target = MODULE_OF_VIEW[view];
+    if (target && !byHref.has(target.href)) byHref.set(target.href, target);
+  }
+  return [...byHref.values()];
+}
 
 function formatCell(cell: QueryCell): string {
   if (cell === null) return '—';
@@ -128,7 +157,7 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
               <Icon name="agente" size={40} strokeWidth={1.5} className="text-navy" />
               <div className="text-[26px] font-extrabold">¿Qué quiere saber hoy?</div>
               <div className="text-base leading-normal text-muted">
-                Pregunte en lenguaje natural. El agente consulta las vistas del sistema y le muestra la tabla y la consulta SQL que usó.
+                Pregunte en lenguaje natural. El agente consulta los datos del hospital y le muestra la respuesta con su tabla y un acceso al módulo relacionado.
               </div>
             </div>
           )}
@@ -152,7 +181,7 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
                 </div>
               )}
 
-              {m.state === 'ok' && m.result && <Answer result={m.result} />}
+              {m.state === 'ok' && m.result && <Answer result={m.result} onAsk={online ? (q) => void ask(q) : undefined} />}
             </div>
           ))}
         </div>
@@ -205,7 +234,8 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
   );
 }
 
-function Answer({ result }: { result: QueryResponse }) {
+function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: string) => void }) {
+  const modules = relatedModules(result.views_used);
   return (
     <div className="flex max-w-full flex-col gap-3.5">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -214,6 +244,17 @@ function Answer({ result }: { result: QueryResponse }) {
         )}
       </div>
       <p className="m-0 max-w-[860px] text-lg leading-relaxed">{result.answer}</p>
+
+      {result.highlights.length > 0 && (
+        <div className="max-w-[860px] rounded-xl border border-line bg-canvas px-[18px] py-3.5">
+          <div className="mb-1.5 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">Datos destacados</div>
+          <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-base leading-relaxed">
+            {result.highlights.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {result.columns.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-line">
@@ -251,18 +292,63 @@ function Answer({ result }: { result: QueryResponse }) {
         </div>
       )}
 
-      <details className="rounded-xl border border-line bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-[15px] font-bold">Ver SQL generado</summary>
-        <pre className="m-0 select-text overflow-x-auto whitespace-pre-wrap border-t border-line bg-canvas px-4 py-3.5 font-mono text-sm leading-relaxed">{result.sql}</pre>
-      </details>
+      {result.notes.length > 0 && (
+        <div className="flex max-w-[860px] flex-col gap-1 text-[15px] leading-normal text-slate-700">
+          <div className="text-[13px] font-bold uppercase tracking-[0.05em] text-muted">Para tener en cuenta</div>
+          {result.notes.map((n) => (
+            <div key={n} className="flex gap-2">
+              <Icon name="info" size={16} className="mt-[3px] shrink-0 text-muted" />
+              <span>{n}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modules.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-muted">Ver en el módulo</span>
+          {modules.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              className="inline-flex items-center gap-2 rounded-xl border-[1.5px] border-navy bg-white px-3.5 py-2 text-sm font-bold text-navy no-underline hover:bg-slate-100"
+            >
+              <Icon name={m.icon} size={16} />
+              {m.label}
+              <span aria-hidden="true">→</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {result.follow_up_questions.length > 0 && onAsk && (
+        <div className="flex flex-col gap-2">
+          <div className="text-[13px] font-bold uppercase tracking-[0.05em] text-muted">Preguntas relacionadas</div>
+          <div className="flex flex-wrap gap-2">
+            {result.follow_up_questions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onAsk(q)}
+                className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-left text-sm font-medium leading-snug hover:border-leaf"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-muted">
         <span>
           Origen: <strong>{ORIGIN_LABEL(result)}</strong>
         </span>
-        <span>
-          Vistas: <span className="font-mono">{result.views_used.join(', ')}</span>
-        </span>
+        {result.views_used.length > 0 && (
+          <span>
+            Vistas: <span className="font-mono">{result.views_used.join(', ')}</span>
+          </span>
+        )}
         <span>Duración: {fmtInt(result.duration_ms)} ms</span>
         <span>Fecha de referencia: {result.reference_date.split('-').reverse().join('/')}</span>
       </div>

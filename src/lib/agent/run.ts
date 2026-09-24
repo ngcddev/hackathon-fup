@@ -4,6 +4,8 @@ import type { AuthUser } from '@/lib/auth/with-auth';
 import { queryAsAppBackend, runAgentQuery } from '@/lib/db';
 import type { AgentView, LlmProvider, QueryCell, QueryOrigin, QueryResponse } from '@/lib/types/api';
 import { fillAnswerTemplate } from './answer-template';
+import { describeResult, followUpQuestions, viewNotes } from './context';
+import { detectHelp, HELP_COLUMNS, helpAnswer, helpRows, SCOPE_HINT, type HelpKind } from './help';
 import { forgetDecision, generateSqlWithLlm, isLlmEnabled, rememberDecision, type LlmDecision } from './llm';
 import { NO_DATA_ANSWER, matchPlanB, suggestedQuestions } from './plan-b';
 import { isSensitiveQuestion, redactQuestionForLog, SENSITIVE_MESSAGE, stripPatientKey } from './privacy';
@@ -80,9 +82,13 @@ function buildResponse(
     rows: Record<string, unknown>[];
     origin: QueryOrigin;
     provider: LlmProvider | null;
+    followUps?: string[]; // preguntas sugeridas por el LLM
+    withContext?: boolean; // false en las respuestas de ayuda: sin destacados, notas ni sugerencias
   },
 ): QueryResponse {
   const matrix = data.rows.map((row) => data.columns.map((c) => toCell(row[c])));
+  const truncated = matrix.length >= MAX_LIMIT;
+  const withContext = data.withContext ?? true;
   return {
     question,
     answer: data.answer,
@@ -90,14 +96,38 @@ function buildResponse(
     columns: data.columns,
     rows: matrix,
     row_count: matrix.length,
-    truncated: matrix.length >= MAX_LIMIT,
+    truncated,
     origin: data.origin,
     llm_provider: data.provider,
     views_used: data.viewsUsed,
     includes_simulated_data: data.viewsUsed.some((v) => SIMULATED_VIEWS.has(v)),
     reference_date: referenceDate,
     duration_ms: Math.round(performance.now() - started),
+    highlights: withContext ? describeResult(data.columns, data.rows) : [],
+    notes: withContext && data.rows.length > 0 ? viewNotes(data.viewsUsed, data.answer, truncated) : [],
+    follow_up_questions: withContext ? followUpQuestions(question, data.viewsUsed, data.followUps) : [],
   };
+}
+
+// Saludos y preguntas sobre el asistente: temas disponibles con un ejemplo de cada uno, sin SQL.
+async function helpResponse(question: string, started: number, kind: HelpKind): Promise<QueryResponse> {
+  const referenceDate = await getReferenceDate();
+  return buildResponse(question, started, referenceDate, {
+    answer: helpAnswer(kind, referenceDate),
+    sql: '',
+    viewsUsed: [],
+    columns: HELP_COLUMNS,
+    rows: helpRows(),
+    origin: 'predefined',
+    provider: null,
+    withContext: false,
+  });
+}
+
+// Mensaje de "fuera de alcance" con orientación sobre lo que sí se puede preguntar.
+function outOfScopeMessage(reason: string | null): string {
+  const base = reason ? reason.replace(/[.\s]+$/, '') + '.' : 'No tengo datos para responder esa pregunta.';
+  return `${base} ${SCOPE_HINT}`;
 }
 
 type LlmSqlResult =
@@ -136,6 +166,7 @@ async function answerWithLlmSql(
     rows,
     origin: 'llm',
     provider,
+    followUps: decision.followUps,
   });
   return { ok: true, outcome: { response, sql: validation.sql } };
 }
@@ -157,6 +188,10 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
       if (decision.type === 'sensitive') {
         trace.note = 'El LLM marcó la pregunta como sensible';
         throw new ApiError('SENSITIVE_DATA_REQUESTED', SENSITIVE_MESSAGE);
+      }
+      if (decision.type === 'help') {
+        trace.note = 'El LLM marcó la pregunta como consulta sobre el asistente';
+        return { response: await helpResponse(question, started, 'help'), sql: '' };
       }
       if (decision.type === 'out_of_scope') {
         outOfScopeReason = decision.reason;
@@ -180,10 +215,10 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
   const match = matchPlanB(question);
   if (!match) {
     if (outOfScopeReason !== null) {
-      throw new ApiError('OUT_OF_SCOPE', outOfScopeReason === '' ? undefined : outOfScopeReason);
+      throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(outOfScopeReason));
     }
     // SQL del LLM bloqueado por el validador (p. ej. pide otro esquema) y sin plan B: se trata como fuera de alcance.
-    if (validatorRejected) throw new ApiError('OUT_OF_SCOPE');
+    if (validatorRejected) throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(null));
     const suggestions = suggestedQuestions().map((q) => `"${q}"`).join(' · ');
     throw new ApiError(
       'AGENT_UNAVAILABLE',
@@ -240,6 +275,21 @@ export async function handleQuery(question: string, user: AuthUser): Promise<Que
     throw new ApiError('SENSITIVE_DATA_REQUESTED', SENSITIVE_MESSAGE);
   }
 
+  // AGE-10: saludos y "¿qué puedo consultar?" se responden sin LLM con los temas disponibles.
+  const helpKind = detectHelp(question);
+  if (helpKind) {
+    const response = await helpResponse(question, started, helpKind);
+    await logQuery({
+      ...base,
+      generatedSql: null,
+      status: 'ok',
+      errorMessage: null,
+      rowCount: response.row_count,
+      durationMs: elapsed(),
+    });
+    return { ...response, duration_ms: elapsed() };
+  }
+
   const trace: Trace = { origin: 'predefined', provider: null, sql: null, note: null };
   const note = () => (trace.note === null ? null : trace.note.slice(0, NOTE_MAX));
 
@@ -249,7 +299,7 @@ export async function handleQuery(question: string, user: AuthUser): Promise<Que
       ...base,
       origin: response.origin,
       llmProvider: response.llm_provider,
-      generatedSql: sql,
+      generatedSql: sql === '' ? null : sql,
       status: 'ok',
       // Si respondió el plan B por un fallo del LLM, aquí queda la causa (AGE-05).
       errorMessage: note(),
