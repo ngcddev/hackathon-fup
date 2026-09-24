@@ -1,6 +1,8 @@
 // Verifica las tarjetas de GET /api/kpis contra supabase/tests/expected_values.md.
 // Uso: npx tsx --conditions=react-server scripts/kpis-check.ts
 // (la condición react-server evita que 'server-only' falle fuera de Next.js)
+export {};
+
 try {
   process.loadEnvFile('.env.local');
 } catch {

@@ -123,11 +123,14 @@ export interface CriticalDrug {
   days_of_inventory: number;
   stock_date: IsoDate;
   is_simulated: boolean;
+  estimated_stockout_date?: IsoDate; // D2: reference_date + días de inventario (hacia abajo)
+  suggested_order_quantity?: number; // D2: unidades para cubrir `target_days` de consumo (mínimo 0)
 }
 
 export interface CriticalDrugsCard {
   scope: KpiScope; // 'hospital'
   threshold_days: number; // 5
+  target_days?: number; // D2: días de cobertura usados en suggested_order_quantity
   count: number;
   includes_simulated_data: boolean;
   items: CriticalDrug[]; // solo item_type = medicamento, de menor a mayor días
@@ -224,6 +227,80 @@ export interface KpisResponse {
   reference_date: IsoDate;
   generated_at: AuditTimestamp;
   service_filter: string | null;
+}
+
+// ---------------------------------------------------------------- GET /api/insights/arrivals (D6)
+
+export interface ArrivalsCell {
+  weekday: number; // 1 lunes a 7 domingo (ISO)
+  hour: number; // 0 a 23, hora de llegada
+  avg_arrivals: number; // llegadas ÷ veces que ese día de la semana aparece en el periodo
+}
+
+export interface ArrivalsPeak {
+  weekday: number;
+  weekday_name: string;
+  hour_start: number; // franja de 2 horas: hour_start a hour_end (hour_end 24 = medianoche)
+  hour_end: number;
+  avg_arrivals: number; // llegadas promedio en la franja
+  pct_above_average: number; // % sobre el promedio de las 84 franjas de la semana
+  shift: 'dia' | 'noche'; // turno donde cae la mayoría de las llegadas de la franja
+  recommendation: string;
+}
+
+export interface ArrivalsInsightResponse {
+  scope: KpiScope; // 'hospital'
+  period_start: IsoDate; // primer día con llegadas
+  period_end: IsoDate; // reference_date
+  days_count: number;
+  arrivals_total: number;
+  avg_arrivals_per_slot: number; // promedio de las 84 franjas (7 días × 12 franjas de 2 h)
+  cells: ArrivalsCell[]; // 168 celdas: día de la semana × hora
+  top_slots: ArrivalsPeak[]; // las 3 franjas con más llegadas frente al promedio
+  reference_date: IsoDate;
+  generated_at: AuditTimestamp;
+}
+
+// ---------------------------------------------------------------- GET /api/insights/wait-root-cause (D7)
+
+export interface WaitPeriod {
+  start: IsoDate;
+  end: IsoDate;
+}
+
+export interface WaitOverall {
+  current_avg_wait_minutes: number;
+  baseline_avg_wait_minutes: number;
+  change_pct: number | null; // null si la línea base es 0
+  current_volume: number;
+  baseline_volume: number;
+}
+
+export interface WaitRootCauseSegment {
+  shift: 'dia' | 'noche';
+  weekday: number; // 1 lunes a 7 domingo (ISO)
+  weekday_name: string;
+  triage_level: number | null; // null: ingresos sin triage
+  current_avg_wait_minutes: number; // última semana
+  baseline_avg_wait_minutes: number; // 4 semanas anteriores
+  change_minutes: number; // actual − línea base
+  change_pct: number | null;
+  current_volume: number; // ingresos de la última semana en el segmento
+  baseline_volume: number;
+  contribution_minutes: number; // cambio × volumen actual (minutos de espera acumulados)
+  contribution_share_pct: number | null; // % del cambio total (cambio global × volumen actual global)
+}
+
+export interface WaitRootCauseResponse {
+  scope: KpiScope; // 'hospital'
+  current_period: WaitPeriod; // última semana (reference_date − 6 a reference_date)
+  baseline_period: WaitPeriod; // las 4 semanas anteriores (28 días)
+  min_segment_volume: number; // segmentos con menos ingresos (en cualquiera de los dos periodos) no se reportan
+  overall: WaitOverall;
+  top_segments: WaitRootCauseSegment[]; // hasta 3, los que más aportan al cambio
+  summary: string; // frase armada con plantilla, sin LLM
+  reference_date: IsoDate;
+  generated_at: AuditTimestamp;
 }
 
 // ---------------------------------------------------------------- GET /api/sources
