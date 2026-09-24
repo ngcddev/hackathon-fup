@@ -34,16 +34,17 @@ export function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-5 py-8">
-      <div className="grid w-full max-w-[1040px] grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] overflow-hidden rounded-2xl border border-line bg-white shadow-float">
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-6 sm:px-5 sm:py-8">
+      <div className="grid w-full max-w-[1040px] grid-cols-1 overflow-hidden md:grid-cols-2 rounded-2xl border border-line bg-white shadow-float">
         <div
-          className="relative flex min-h-[560px] flex-col justify-between bg-slate-200 bg-cover bg-center p-6"
+          className="relative flex aspect-[751/687] min-h-[320px] flex-col justify-between gap-4 bg-slate-200 bg-cover bg-[center_30%] p-4 sm:p-6 md:aspect-auto md:min-h-[560px]"
           style={{
-            backgroundImage: 'linear-gradient(rgba(15,23,42,0.25), rgba(15,23,42,0.35)), url(/login-hospital.webp)',
+            backgroundImage:
+              'linear-gradient(to bottom, rgba(15,23,42,0.3), rgba(15,23,42,0.05) 30%, rgba(15,23,42,0.05) 55%, rgba(15,23,42,0.6)), url(/login-hospital.webp)',
           }}
         >
-          <div className="flex items-center gap-3 self-center rounded-full border border-white/60 bg-white/45 py-2 pl-2 pr-5 backdrop-blur-md">
-            <span className="block size-10 shrink-0 overflow-hidden rounded-full">
+          <div className="mx-auto flex w-fit max-w-full items-center justify-center gap-2.5 self-center rounded-full border border-white/60 bg-white/60 px-1.5 py-1.5 backdrop-blur-md sm:gap-3 sm:bg-white/45 sm:p-2">
+            <span className="block size-8 shrink-0 overflow-hidden rounded-full sm:size-10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/logo.svg"
@@ -51,21 +52,23 @@ export function LoginForm() {
                 className="size-full object-contain mix-blend-multiply"
               />
             </span>
-            <div className="text-center text-sm font-bold leading-snug text-navy">
+            <div className="min-w-0 flex-1 text-balance text-center text-xs font-bold leading-snug text-navy sm:text-sm">
               Hospital Susana López de Valencia E.S.E.
               <br />
               <span className="font-medium text-muted">Popayán, Cauca</span>
             </div>
+            {/* Contrapeso del logo para que el texto quede centrado en la etiqueta. */}
+            <span aria-hidden className="block size-8 shrink-0 sm:size-10" />
           </div>
-          <h1 className="m-0 mx-auto max-w-[460px] px-2 pb-2 text-center text-3xl font-extrabold sm:text-4xl leading-tight tracking-tight text-white [text-shadow:0_2px_4px_rgba(15,23,42,0.6),0_4px_24px_rgba(15,23,42,0.55)] text-balance">
+          <h1 className="m-0 mx-auto max-w-[460px] px-2 pb-2 text-center text-2xl font-extrabold leading-tight sm:text-3xl md:text-4xl tracking-tight text-white [text-shadow:0_2px_4px_rgba(15,23,42,0.6),0_4px_24px_rgba(15,23,42,0.55)] text-balance">
             ¡Pensando en ti, doy lo mejor de mi!
           </h1>
         </div>
 
-        <div className="flex items-center justify-center px-10 py-12">
+        <div className="flex items-center justify-center px-6 py-8 sm:px-10 sm:py-12">
           <form onSubmit={submit} className="flex w-full max-w-[400px] flex-col gap-[18px]">
             <div>
-              <h2 className="m-0 text-[28px] font-extrabold tracking-tight text-navy">Iniciar sesión</h2>
+              <h2 className="m-0 text-2xl font-extrabold tracking-tight text-navy sm:text-[28px]">Iniciar sesión</h2>
               <p className="mb-0 mt-1.5 text-base text-muted">Sistema de Gestión Hospitalaria Inteligente</p>
             </div>
             <label className="flex flex-col gap-2 text-[15px] font-semibold">
