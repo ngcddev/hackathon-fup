@@ -6,7 +6,7 @@ import { useOnline } from '@/components/app/KpisProvider';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { fmtInt } from '@/components/ui/format';
 import { ClientApiError, apiPost, errorMessage } from '@/lib/api/client';
-import type { AgentView, QueryCell, QueryRequest, QueryResponse } from '@/lib/types/api';
+import type { AppModule, QueryCell, QueryRequest, QueryResponse } from '@/lib/types/api';
 import { SUGGESTED_QUESTIONS } from './SummaryView';
 
 interface Message {
@@ -26,33 +26,18 @@ const ERROR_TITLE: Partial<Record<string, string>> = {
   VALIDATION_ERROR: 'La pregunta no es válida',
 };
 
-// Módulo del sistema donde se ven con más detalle los datos de cada vista del agente.
-interface Module {
-  href: string;
-  label: string;
-  icon: IconName;
-}
-
-const MODULE_OF_VIEW: Record<AgentView, Module> = {
-  v_bed_occupancy: { href: '/beds', label: 'Camas', icon: 'beds' },
-  v_admissions: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
-  v_emergency_wait_times: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
-  v_diagnosis_monthly: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
-  v_drug_inventory: { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
-  v_drug_consumption_daily: { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
-  v_surgeries: { href: '/surgeries', label: 'Cirugías', icon: 'surgeries' },
-  v_service_demand_daily: { href: '/', label: 'Resumen', icon: 'summary' },
+// Enlaces rápidos a los módulos que el servidor marca como relacionados (QueryResponse.modules).
+const MODULE_LINK: Record<AppModule, { href: string; label: string; icon: IconName }> = {
+  alerts: { href: '/alerts', label: 'Alertas', icon: 'alerts' },
+  beds: { href: '/beds', label: 'Camas', icon: 'beds' },
+  patients: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
+  drugs: { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
+  surgeries: { href: '/surgeries', label: 'Cirugías', icon: 'surgeries' },
+  summary: { href: '/', label: 'Resumen', icon: 'summary' },
 };
 
-// Un enlace por módulo aunque varias vistas lleven al mismo.
-function relatedModules(views: AgentView[]): Module[] {
-  const byHref = new Map<string, Module>();
-  for (const view of views) {
-    const target = MODULE_OF_VIEW[view];
-    if (target && !byHref.has(target.href)) byHref.set(target.href, target);
-  }
-  return [...byHref.values()];
-}
+// Textos largos (hallazgos, plan de acción) se ajustan en varias líneas en vez de estirar la tabla.
+const LONG_CELL = 60;
 
 function formatCell(cell: QueryCell): string {
   if (cell === null) return '—';
@@ -254,7 +239,7 @@ export function AgentChatView({ initialQuestion, autoSend, requestId }: AgentCha
 }
 
 function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: string) => void }) {
-  const modules = relatedModules(result.views_used);
+  const modules = result.modules.map((m) => MODULE_LINK[m]);
   return (
     <div className="flex max-w-full flex-col gap-3.5">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -288,7 +273,7 @@ function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: s
                       key={c}
                       className="sticky top-0 whitespace-nowrap border-b border-line bg-slate-100 px-3.5 py-2.5 text-left text-[13px] font-bold uppercase tracking-[0.05em] text-muted"
                     >
-                      {c}
+                      {c.replace(/_/g, ' ')}
                     </th>
                   ))}
                 </tr>
@@ -296,11 +281,22 @@ function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: s
               <tbody>
                 {result.rows.map((row, i) => (
                   <tr key={i} className="border-t border-mist">
-                    {row.map((cell, j) => (
-                      <td key={j} className="whitespace-nowrap px-3.5 py-[9px]">
-                        {formatCell(cell)}
-                      </td>
-                    ))}
+                    {row.map((cell, j) => {
+                      const text = formatCell(cell);
+                      const long = text.length > LONG_CELL;
+                      return (
+                        <td
+                          key={j}
+                          className={
+                            long
+                              ? 'min-w-[280px] px-3.5 py-[9px] align-top leading-snug'
+                              : 'whitespace-nowrap px-3.5 py-[9px] align-top'
+                          }
+                        >
+                          {text}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

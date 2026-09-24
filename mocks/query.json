@@ -24,6 +24,7 @@
     "follow_up_questions": [
       "¿Qué medicamentos tienen entre 5 y 10 días de inventario?",
       "¿Cuáles son los 10 medicamentos más dispensados en los últimos 30 días?"
-    ]
+    ],
+    "modules": ["drugs"]
   }
 }

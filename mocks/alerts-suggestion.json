@@ -1,0 +1,41 @@
+{
+  "_simulated": true,
+  "request": {
+    "alert_id": "stockout:MED-0001"
+  },
+  "response": {
+    "alert_id": "stockout:MED-0001",
+    "summary": "MEDICAMENTO SIMULADO A se agota en 1,8 días con el consumo actual; el pedido debe llegar antes del quiebre.",
+    "steps": [
+      {
+        "action": "Pedir 396 unidades para cubrir 15 días de consumo.",
+        "detail": "",
+        "owner": "Farmacia",
+        "timeframe": "Ahora",
+        "source": "system"
+      },
+      {
+        "action": "Confirmar el stock físico antes de enviar el pedido.",
+        "detail": "El inventario del sistema es simulado; así el pedido no queda corto ni sobra.",
+        "owner": "Farmacia",
+        "timeframe": "Ahora",
+        "source": "ai"
+      },
+      {
+        "action": "Acordar un sustituto terapéutico si el proveedor no alcanza a entregar.",
+        "detail": "Evita el quiebre mientras llega el pedido.",
+        "owner": "Comité de farmacia",
+        "timeframe": "Hoy",
+        "source": "ai"
+      }
+    ],
+    "monitor": "MEDICAMENTO SIMULADO A vuelve a tener más de 10 días de inventario.",
+    "facts": [
+      "Áreas que más lo consumieron en 30 días: APOYO TERAPEUTICO - FARMACIA (964 unidades); URGENCIAS OBSERVACION ADULTOS (89 unidades).",
+      "Consumo de los últimos 7 días: 280 unidades; 7 días anteriores: 270."
+    ],
+    "origin": "llm",
+    "llm_provider": "groq",
+    "generated_at": "2026-09-21T14:33:00-05:00"
+  }
+}

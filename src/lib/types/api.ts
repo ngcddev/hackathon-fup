@@ -73,7 +73,11 @@ export interface QueryResponse {
   highlights: string[]; // frases con cifras del resultado: total, participación, rango, pico, tendencia
   notes: string[]; // advertencias de las vistas usadas (datos simulados, umbrales de privacidad…)
   follow_up_questions: string[]; // hasta 3 preguntas relacionadas para seguir explorando
+  modules: AppModule[]; // módulos del sistema relacionados, para enlaces rápidos (sin repetidos)
 }
+
+// Módulos de la aplicación a los que el agente puede enlazar desde una respuesta.
+export type AppModule = 'summary' | 'patients' | 'beds' | 'drugs' | 'surgeries' | 'alerts';
 
 // ---------------------------------------------------------------- GET /api/kpis
 
@@ -231,6 +235,31 @@ export interface KpisResponse {
   reference_date: IsoDate;
   generated_at: AuditTimestamp;
   service_filter: string | null;
+}
+
+// ---------------------------------------------------------------- POST /api/alerts/suggestion
+
+export interface AlertSuggestionRequest {
+  alert_id: string; // KpiAlert.id de una alerta activa
+}
+
+export interface AlertSuggestionStep {
+  action: string; // qué hacer, en una frase
+  detail: string; // por qué o cómo; puede venir vacío
+  owner: string; // rol responsable (nunca una persona)
+  timeframe: string; // cuándo: "Ahora", "Hoy", "Cada turno", "Esta semana"…
+  source: 'system' | 'ai'; // 'system': recomendación del tablero o plan predefinido; 'ai': aporte de la IA
+}
+
+export interface AlertSuggestionResponse {
+  alert_id: string;
+  summary: string; // lectura breve de la situación
+  steps: AlertSuggestionStep[]; // de 2 a 5; el primero siempre es la recomendación del tablero
+  monitor: string; // qué indicador confirma que la alerta se resolvió (lo fija el sistema)
+  facts: string[]; // datos agregados del hospital en que se apoyan los pasos (camas libres, consumo por área…)
+  origin: QueryOrigin; // 'llm' (IA) o 'predefined' (plan de respaldo sin IA)
+  llm_provider: LlmProvider | null;
+  generated_at: AuditTimestamp;
 }
 
 // ---------------------------------------------------------------- GET /api/insights/arrivals (D6)

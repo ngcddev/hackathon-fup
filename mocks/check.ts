@@ -6,6 +6,8 @@
 
 import type {
   AdminLogsResponse,
+  AlertSuggestionRequest,
+  AlertSuggestionResponse,
   ApplyBatchResponse,
   CreateBatchRequest,
   CreateBatchResponse,
@@ -26,6 +28,7 @@ import type {
 } from '@/lib/types/api';
 
 import adminLogs from './admin-logs.json';
+import alertsSuggestion from './alerts-suggestion.json';
 import adminUsersCreate from './admin-users-create.json';
 import adminUsersList from './admin-users-list.json';
 import adminUsersResetPassword from './admin-users-reset-password.json';
@@ -63,6 +66,7 @@ export const mocks = {
   me: me satisfies Mock<null, MeResponse>,
   query: query satisfies Mock<QueryRequest, QueryResponse>,
   kpis: kpis satisfies Mock<{ service: string }, KpisResponse>,
+  alertsSuggestion: alertsSuggestion satisfies Mock<AlertSuggestionRequest, AlertSuggestionResponse>,
   sources: sources satisfies Mock<null, SourcesResponse>,
   importBatchesCreate: importBatchesCreate satisfies Mock<CreateBatchRequest, CreateBatchResponse>,
   importBatchesRows: importBatchesRows satisfies Mock<SendRowsRequest, SendRowsResponse>,
