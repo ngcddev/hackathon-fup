@@ -1,0 +1,115 @@
+{
+  "_simulated": true,
+  "request": { "service": "UNIDAD DE CUIDADO INTENSIVO" },
+  "response": {
+    "occupancy": {
+      "scope": "service",
+      "day": "2026-09-21",
+      "total": { "occupied_beds": 30, "capacity": 46, "occupancy_pct": 65.2 },
+      "by_service": [
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "occupied_beds": 30, "capacity": 46, "occupancy_pct": 65.2 }
+      ],
+      "by_subservice": [
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "subservice": "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", "occupied_beds": 9, "capacity": 19, "occupancy_pct": 47.4, "is_capacity_simulated": false },
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "subservice": "UNIDAD DE CUIDADO INTENSIVO NEONATAL", "occupied_beds": 15, "capacity": 18, "occupancy_pct": 83.3, "is_capacity_simulated": false },
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "subservice": "UNIDAD DE CUIDADO INTENSIVO PEDIATRICO", "occupied_beds": 6, "capacity": 9, "occupancy_pct": 66.7, "is_capacity_simulated": false }
+      ]
+    },
+    "emergency_wait": {
+      "scope": "hospital",
+      "period_start": "2026-09-15",
+      "period_end": "2026-09-21",
+      "avg_wait_minutes": 62.1,
+      "admissions_count": 796,
+      "by_triage_level": [
+        { "triage_level": 1, "avg_wait_minutes": 14.2, "admissions_count": 12 },
+        { "triage_level": 2, "avg_wait_minutes": 41.5, "admissions_count": 110 },
+        { "triage_level": 3, "avg_wait_minutes": 66.8, "admissions_count": 480 },
+        { "triage_level": 4, "avg_wait_minutes": 78.3, "admissions_count": 180 },
+        { "triage_level": null, "avg_wait_minutes": 35.0, "admissions_count": 14 }
+      ]
+    },
+    "critical_drugs": {
+      "scope": "hospital",
+      "threshold_days": 5,
+      "count": 3,
+      "includes_simulated_data": true,
+      "items": [
+        { "item_code": "SIM-0001", "item_name": "MEDICAMENTO SIMULADO A", "current_stock": 54, "avg_daily_consumption": 30, "days_of_inventory": 1.8, "stock_date": "2026-09-21", "is_simulated": true },
+        { "item_code": "SIM-0002", "item_name": "MEDICAMENTO SIMULADO B", "current_stock": 120, "avg_daily_consumption": 41.5, "days_of_inventory": 2.9, "stock_date": "2026-09-21", "is_simulated": true },
+        { "item_code": "SIM-0003", "item_name": "MEDICAMENTO SIMULADO C", "current_stock": 210, "avg_daily_consumption": 52, "days_of_inventory": 4.0, "stock_date": "2026-09-21", "is_simulated": true }
+      ]
+    },
+    "surgeries": {
+      "scope": "hospital",
+      "universe_total": 1180,
+      "performed_total": 826,
+      "compliance_pct": 70.0,
+      "by_month": [
+        { "month": "2026-08", "scheduled": 310, "performed": 233, "compliance_pct": 75.2 },
+        { "month": "2026-09", "scheduled": 190, "performed": 118, "compliance_pct": 62.1 }
+      ]
+    },
+    "demand": {
+      "scope": "service",
+      "period_start": "2026-09-01",
+      "period_end": "2026-09-21",
+      "admissions_by_service": [
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "admissions_count": 41 }
+      ],
+      "services_by_specialty": [
+        { "specialty": "MEDICINA GENERAL", "lines_count": 5210 },
+        { "specialty": "OTRA ESPECIALIDAD NO CLASIFICADA", "lines_count": 1930 }
+      ]
+    },
+    "drug_rotation": {
+      "scope": "hospital",
+      "period_start": "2026-08-23",
+      "period_end": "2026-09-21",
+      "top": [
+        { "item_code": "SIM-0101", "item_name": "ITEM SIMULADO ALTA ROTACION 1", "item_type": "medicamento", "total_quantity": 9800 },
+        { "item_code": "SIM-0102", "item_name": "ITEM SIMULADO ALTA ROTACION 2", "item_type": "dispositivo", "total_quantity": 7420 }
+      ],
+      "bottom": [
+        { "item_code": "SIM-0901", "item_name": "ITEM SIMULADO BAJA ROTACION 1", "item_type": "medicamento", "total_quantity": 1 },
+        { "item_code": "SIM-0902", "item_name": "ITEM SIMULADO BAJA ROTACION 2", "item_type": "dispositivo", "total_quantity": 2 }
+      ]
+    },
+    "occupancy_trend": {
+      "scope": "service",
+      "days": [
+        { "day": "2026-09-20", "occupied_beds": 29, "capacity": 46, "occupancy_pct": 63.0 },
+        { "day": "2026-09-21", "occupied_beds": 30, "capacity": 46, "occupancy_pct": 65.2 }
+      ]
+    },
+    "avg_stay": {
+      "scope": "service",
+      "by_service": [
+        { "service": "UNIDAD DE CUIDADO INTENSIVO", "avg_stay_days": 4.6, "admissions_count": 151 }
+      ]
+    },
+    "alerts": [
+      {
+        "id": "stockout:SIM-0001",
+        "type": "stockout",
+        "severity": "critical",
+        "title": "Desabastecimiento: MEDICAMENTO SIMULADO A",
+        "message": "Quedan 1,8 días de inventario (54 unidades, consumo de 30 por día).",
+        "recommendation": "Pedir 840 unidades para cubrir 30 días.",
+        "is_simulated": true
+      },
+      {
+        "id": "occupancy:UNIDAD DE CUIDADO INTENSIVO:UNIDAD DE CUIDADO INTENSIVO NEONATAL",
+        "type": "occupancy",
+        "severity": "warning",
+        "title": "Ocupación alta: UCI neonatal",
+        "message": "La ocupación es de 83,3 % (15 de 18 camas).",
+        "recommendation": "Evaluar apertura de camas o reasignación de personal.",
+        "is_simulated": false
+      }
+    ],
+    "reference_date": "2026-09-21",
+    "generated_at": "2026-09-23T08:15:00-05:00",
+    "service_filter": "UNIDAD DE CUIDADO INTENSIVO"
+  }
+}

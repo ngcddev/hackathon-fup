@@ -1,0 +1,20 @@
+{
+  "_simulated": true,
+  "request": {
+    "rows": [
+      { "row_number": 2, "values": { "item_code": "SIM-0001", "item_name": "MEDICAMENTO SIMULADO A", "stock_date": "2026-09-22", "current_stock": "54", "unit": "TABLETA", "expiration_date": "2027-03-01" } },
+      { "row_number": 3, "values": { "item_code": "SIM-0002", "item_name": "MEDICAMENTO SIMULADO B", "stock_date": "2026-09-22", "current_stock": "abc", "unit": null, "expiration_date": null } },
+      { "row_number": 4, "values": { "item_code": "SIM-0003", "item_name": "MEDICAMENTO SIMULADO C", "stock_date": "2026-09-22", "current_stock": "210", "unit": "AMPOLLA", "expiration_date": "2027-01-15" } }
+    ]
+  },
+  "response": {
+    "batch_id": "5c8e1f3a-2b4d-4e6f-8a0b-1c3d5e7f9a11",
+    "received_rows": 3,
+    "total_received_rows": 3,
+    "invalid_rows": 1,
+    "row_errors": [
+      { "row_number": 3, "column_name": "current_stock", "message": "Debe ser un número mayor o igual a 0." }
+    ],
+    "errors_truncated": false
+  }
+}

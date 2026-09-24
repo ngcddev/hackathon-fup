@@ -1,0 +1,16 @@
+{
+  "_simulated": true,
+  "request": {
+    "target": "drug_stock",
+    "file_name": "inventario_farmacia_ejemplo.xlsx",
+    "source_system": "Farmacia",
+    "total_rows": 3
+  },
+  "response": {
+    "batch_id": "5c8e1f3a-2b4d-4e6f-8a0b-1c3d5e7f9a11",
+    "target": "drug_stock",
+    "status": "pending",
+    "max_chunk_bytes": 4000000,
+    "max_rows_per_batch": 10000
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "_simulated": true,
+  "request": null,
+  "response": {
+    "batch_id": "5c8e1f3a-2b4d-4e6f-8a0b-1c3d5e7f9a11",
+    "status": "applied",
+    "rows_loaded": 3,
+    "applied_at": "2026-09-23T09:02:00-05:00"
+  }
+}

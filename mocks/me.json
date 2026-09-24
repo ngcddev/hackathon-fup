@@ -1,0 +1,10 @@
+{
+  "_simulated": true,
+  "request": null,
+  "response": {
+    "id": "6f1c2a7e-3b0d-4c55-9a11-0d2e5c7b8a01",
+    "full_name": "Laura Mendoza (cuenta demo)",
+    "role": "pharmacy",
+    "permissions": ["dashboard:view", "summary:view", "agent:query", "sources:view", "import:drug_stock"]
+  }
+}
