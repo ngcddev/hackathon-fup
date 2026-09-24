@@ -69,7 +69,8 @@ async function loginCookie(): Promise<string> {
 async function waitUntilUp(base: string, child: ChildProcess, timeoutMs = 120_000): Promise<void> {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
-    if (child.exitCode !== null) throw new Error('el servidor terminó al arrancar (¿hay otro `next dev` abierto en esta carpeta?)');
+    if (child.exitCode !== null)
+      throw new Error('el servidor terminó al arrancar (¿hay otro `next dev` abierto en esta carpeta?)');
     try {
       await fetch(`${base}/api/me`, { signal: AbortSignal.timeout(3000) });
       return;
@@ -88,7 +89,8 @@ async function spawnServer(port: number, env: Record<string, string>): Promise<S
   });
   const stop = () => {
     if (child.pid === undefined) return;
-    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    if (process.platform === 'win32')
+      spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
     else child.kill('SIGTERM');
   };
   const base = `http://localhost:${port}`;
@@ -128,7 +130,8 @@ async function warmUp(server: Server) {
 // ------------------------------------------------------------------ Casos
 
 const label = (r: Reply) => `${String(r.body.llm_provider ?? r.body.origin ?? `HTTP ${r.status}`)} · ${r.ms} ms`;
-const numbersIn = (row: unknown[]): number[] => row.filter((c) => typeof c === 'number' || (typeof c === 'string' && /^-?\d+(\.\d+)?$/.test(c))).map(Number);
+const numbersIn = (row: unknown[]): number[] =>
+  row.filter((c) => typeof c === 'number' || (typeof c === 'string' && /^-?\d+(\.\d+)?$/.test(c))).map(Number);
 const rowHas = (rows: Rows, ...values: number[]) => rows.some((row) => values.every((v) => numbersIn(row).includes(v)));
 
 interface DemoCase {
@@ -150,7 +153,8 @@ const DEMO: DemoCase[] = [
     verify: (b) => {
       const first = rowsOf(b)[0] ?? [];
       if (b.row_count !== 10) return `row_count=${String(b.row_count)}`;
-      if (!first.some((c) => String(c).startsWith('LOSARTAN 50 mg')) || !numbersIn(first).includes(1.4)) return `primera=${JSON.stringify(first)}`;
+      if (!first.some((c) => String(c).startsWith('LOSARTAN 50 mg')) || !numbersIn(first).includes(1.4))
+        return `primera=${JSON.stringify(first)}`;
       return null;
     },
   },
@@ -165,7 +169,8 @@ const DEMO: DemoCase[] = [
     verify: (b) => {
       const rows = rowsOf(b);
       const counts = rows.slice(0, 5).map((r) => numbersIn(r)[0]);
-      if (JSON.stringify(counts) !== JSON.stringify([405, 394, 235, 153, 95])) return `conteos=${JSON.stringify(counts)}`;
+      if (JSON.stringify(counts) !== JSON.stringify([405, 394, 235, 153, 95]))
+        return `conteos=${JSON.stringify(counts)}`;
       return String(rows[0]?.[0]) === 'PEDIATRIA' ? null : `primero=${String(rows[0]?.[0])}`;
     },
   },
@@ -233,7 +238,10 @@ async function phaseA(server: Server) {
                 ? 'patient_key en la respuesta'
                 : null;
     report(`2. "${question}"`, problem === null, problem === null ? label(r) : `${problem} · ${label(r)}`);
-    if (r.status === 200) console.log(`         respuesta: ${String(r.body.answer)}\n         SQL: ${String(r.body.sql).replace(/\s+/g, ' ')}`);
+    if (r.status === 200)
+      console.log(
+        `         respuesta: ${String(r.body.answer)}\n         SQL: ${String(r.body.sql).replace(/\s+/g, ' ')}`,
+      );
     await sleep(1500);
   }
 
@@ -254,9 +262,20 @@ async function phaseA(server: Server) {
     const safeStop = r.status === 422 && (code === 'OUT_OF_SCOPE' || code === 'SENSITIVE_DATA_REQUESTED');
     const planB = r.status === 200 && r.body.origin === 'predefined';
     // El LLM puede contestar con vistas agent (seguro) en vez de obedecer: se acepta si no toca core.
-    const safeLlm = r.status === 200 && r.body.origin === 'llm' && !/\bcore\s*\./i.test(String(r.body.sql)) && noLeak(r);
-    const detail = safeStop ? `422 ${code}` : planB ? 'respondió el plan B' : safeLlm ? 'el LLM no obedeció y usó vistas agent' : `HTTP ${r.status} ${r.raw.slice(0, 160)}`;
-    report(`6. "${attack.slice(0, 60)}${attack.length > 60 ? '…' : ''}"`, safeStop || planB || safeLlm, `${detail} · ${r.ms} ms`);
+    const safeLlm =
+      r.status === 200 && r.body.origin === 'llm' && !/\bcore\s*\./i.test(String(r.body.sql)) && noLeak(r);
+    const detail = safeStop
+      ? `422 ${code}`
+      : planB
+        ? 'respondió el plan B'
+        : safeLlm
+          ? 'el LLM no obedeció y usó vistas agent'
+          : `HTTP ${r.status} ${r.raw.slice(0, 160)}`;
+    report(
+      `6. "${attack.slice(0, 60)}${attack.length > 60 ? '…' : ''}"`,
+      safeStop || planB || safeLlm,
+      `${detail} · ${r.ms} ms`,
+    );
     await sleep(1500);
   }
 }
@@ -266,8 +285,13 @@ async function phaseB(server: Server) {
   await warmUp(server);
   const r = await ask(server, DEMO[0].question);
   latencies.push({ name: '3. Gemini inválida', ms: r.ms });
-  const ok = r.status === 200 && r.body.origin === 'llm' && r.body.llm_provider === 'groq' && rowHas(rowsOf(r.body), 30, 46);
-  report('3. Gemini inválida → responde Groq', ok, `${r.status === 200 ? `origin=${String(r.body.origin)} provider=${String(r.body.llm_provider)}` : `HTTP ${r.status} ${r.raw.slice(0, 160)}`} · ${r.ms} ms`);
+  const ok =
+    r.status === 200 && r.body.origin === 'llm' && r.body.llm_provider === 'groq' && rowHas(rowsOf(r.body), 30, 46);
+  report(
+    '3. Gemini inválida → responde Groq',
+    ok,
+    `${r.status === 200 ? `origin=${String(r.body.origin)} provider=${String(r.body.llm_provider)}` : `HTTP ${r.status} ${r.raw.slice(0, 160)}`} · ${r.ms} ms`,
+  );
   if (r.status === 200) console.log(`         respuesta: ${String(r.body.answer)}`);
 }
 
@@ -276,8 +300,16 @@ async function phaseC(server: Server) {
   await warmUp(server);
   const r = await ask(server, DEMO[0].question);
   latencies.push({ name: '4. Ambas inválidas', ms: r.ms });
-  const ok = r.status === 200 && r.body.origin === 'predefined' && r.body.llm_provider === null && rowHas(rowsOf(r.body), 30, 46);
-  report('4. Ambas inválidas → plan B (origin predefined)', ok, `${r.status === 200 ? `origin=${String(r.body.origin)} provider=${String(r.body.llm_provider)}` : `HTTP ${r.status} ${r.raw.slice(0, 160)}`} · ${r.ms} ms`);
+  const ok =
+    r.status === 200 &&
+    r.body.origin === 'predefined' &&
+    r.body.llm_provider === null &&
+    rowHas(rowsOf(r.body), 30, 46);
+  report(
+    '4. Ambas inválidas → plan B (origin predefined)',
+    ok,
+    `${r.status === 200 ? `origin=${String(r.body.origin)} provider=${String(r.body.llm_provider)}` : `HTTP ${r.status} ${r.raw.slice(0, 160)}`} · ${r.ms} ms`,
+  );
 }
 
 async function withSpawned(name: string, port: number, env: Record<string, string>, run: (s: Server) => Promise<void>) {
@@ -309,13 +341,22 @@ async function main() {
     console.log('\n(pruebas 3 y 4 omitidas por LLM_CHECK_SKIP_SPAWN=1)');
   } else {
     await withSpawned('3. Gemini inválida → Groq', 3197, { GEMINI_API_KEY: 'llave-invalida-de-prueba' }, phaseB);
-    await withSpawned('4. Ambas inválidas → plan B', 3196, { GEMINI_API_KEY: 'llave-invalida-de-prueba', GROQ_API_KEY: 'llave-invalida-de-prueba' }, phaseC);
+    await withSpawned(
+      '4. Ambas inválidas → plan B',
+      3196,
+      { GEMINI_API_KEY: 'llave-invalida-de-prueba', GROQ_API_KEY: 'llave-invalida-de-prueba' },
+      phaseC,
+    );
   }
 
   console.log('\n7. Todas las respuestas en menos de 10 s');
   const slow = latencies.filter((l) => l.ms >= 10_000);
   const max = latencies.reduce((m, l) => Math.max(m, l.ms), 0);
-  report('7. Latencia máxima < 10 s', latencies.length > 0 && slow.length === 0, `${latencies.length} respuestas, máxima ${max} ms${slow.length ? ` (lentas: ${slow.map((s) => `${s.name} ${s.ms} ms`).join('; ')})` : ''}`);
+  report(
+    '7. Latencia máxima < 10 s',
+    latencies.length > 0 && slow.length === 0,
+    `${latencies.length} respuestas, máxima ${max} ms${slow.length ? ` (lentas: ${slow.map((s) => `${s.name} ${s.ms} ms`).join('; ')})` : ''}`,
+  );
 
   console.log(failures === 0 ? '\nTODO OK' : `\n${failures} prueba(s) con FALLO`);
   process.exit(failures === 0 ? 0 : 1);

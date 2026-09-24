@@ -6,7 +6,14 @@ import { DataTable, type Column, type TableFilter } from '@/components/ui/DataTa
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { fmtDateTime, fmtInt } from '@/components/ui/format';
-import type { AdminLogAction, AdminLogEntry, LogType, LogsResponse, QueryLogEntry, QueryLogStatus } from '@/lib/types/api';
+import type {
+  AdminLogAction,
+  AdminLogEntry,
+  LogType,
+  LogsResponse,
+  QueryLogEntry,
+  QueryLogStatus,
+} from '@/lib/types/api';
 
 const STATUS: Record<QueryLogStatus, string> = { ok: 'Correcto', rejected: 'Rechazado', error: 'Error' };
 const ACTION: Record<AdminLogAction, string> = {
@@ -20,11 +27,32 @@ const ACTION: Record<AdminLogAction, string> = {
 const queryColumns: Column<QueryLogEntry>[] = [
   { key: 'date', label: 'Fecha', value: (e) => e.asked_at, render: (e) => fmtDateTime(e.asked_at) },
   { key: 'user', label: 'Usuario', value: (e) => e.user.full_name },
-  { key: 'question', label: 'Pregunta', value: (e) => e.question, render: (e) => <span className="block max-w-[420px] whitespace-normal">{e.question}</span> },
-  { key: 'origin', label: 'Origen', value: (e) => (e.origin === 'predefined' ? 'Predefinida' : `IA${e.llm_provider ? ` (${e.llm_provider})` : ''}`) },
+  {
+    key: 'question',
+    label: 'Pregunta',
+    value: (e) => e.question,
+    render: (e) => <span className="block max-w-[420px] whitespace-normal">{e.question}</span>,
+  },
+  {
+    key: 'origin',
+    label: 'Origen',
+    value: (e) => (e.origin === 'predefined' ? 'Predefinida' : `IA${e.llm_provider ? ` (${e.llm_provider})` : ''}`),
+  },
   { key: 'status', label: 'Resultado', bold: true, value: (e) => STATUS[e.status] },
-  { key: 'rows', label: 'Filas', align: 'right', value: (e) => e.row_count, render: (e) => (e.row_count === null ? '—' : fmtInt(e.row_count)) },
-  { key: 'ms', label: 'Duración (ms)', align: 'right', value: (e) => e.duration_ms, render: (e) => fmtInt(e.duration_ms) },
+  {
+    key: 'rows',
+    label: 'Filas',
+    align: 'right',
+    value: (e) => e.row_count,
+    render: (e) => (e.row_count === null ? '—' : fmtInt(e.row_count)),
+  },
+  {
+    key: 'ms',
+    label: 'Duración (ms)',
+    align: 'right',
+    value: (e) => e.duration_ms,
+    render: (e) => fmtInt(e.duration_ms),
+  },
 ];
 
 const queryFilters: TableFilter<QueryLogEntry>[] = [
@@ -46,7 +74,7 @@ const adminFilters: TableFilter<AdminLogEntry>[] = [
   { label: 'Todas las acciones', get: (e) => ACTION[e.action] },
 ];
 
-export function RegistroView() {
+export function LogsView() {
   const [type, setType] = useState<LogType>('queries');
   const { data, loading, error, reload } = useApi<LogsResponse>(`/api/admin/logs?type=${type}&limit=200`);
 
@@ -63,7 +91,11 @@ export function RegistroView() {
       />
       {/* Mientras llega la otra pestaña, el estado anterior no se muestra bajo el título equivocado. */}
       {!data || data.type !== type ? (
-        loading || !error ? <LoadingState label="el registro de actividad" /> : <ErrorState label="el registro de actividad" message={error} onRetry={reload} />
+        loading || !error ? (
+          <LoadingState label="el registro de actividad" />
+        ) : (
+          <ErrorState label="el registro de actividad" message={error} onRetry={reload} />
+        )
       ) : data.type === 'queries' ? (
         <DataTable
           key="queries"

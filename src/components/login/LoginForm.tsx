@@ -20,7 +20,10 @@ export function LoginForm() {
     setBusy(true);
     setError('');
     // El inicio de sesión lo resuelve Supabase Auth directamente desde el navegador.
-    const { error: authError } = await createClient().auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    const { error: authError } = await createClient().auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
     if (authError) {
       setError('Correo o contraseña incorrectos.');
       setBusy(false);
@@ -35,12 +38,18 @@ export function LoginForm() {
       <div className="grid w-full max-w-[1040px] grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] overflow-hidden rounded-2xl border border-line bg-white shadow-float">
         <div
           className="relative flex min-h-[560px] flex-col justify-between bg-slate-200 bg-cover bg-center p-6"
-          style={{ backgroundImage: 'linear-gradient(rgba(15,23,42,0.25), rgba(15,23,42,0.35)), url(/login-hospital.webp)' }}
+          style={{
+            backgroundImage: 'linear-gradient(rgba(15,23,42,0.25), rgba(15,23,42,0.35)), url(/login-hospital.webp)',
+          }}
         >
           <div className="flex items-center gap-3 self-center rounded-full border border-white/60 bg-white/45 py-2 pl-2 pr-5 backdrop-blur-md">
             <span className="block size-10 shrink-0 overflow-hidden rounded-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Logo Hospital Susana López de Valencia" className="size-full object-contain mix-blend-multiply" />
+              <img
+                src="/logo.svg"
+                alt="Logo Hospital Susana López de Valencia"
+                className="size-full object-contain mix-blend-multiply"
+              />
             </span>
             <div className="text-center text-sm font-bold leading-snug text-navy">
               Hospital Susana López de Valencia E.S.E.
@@ -90,8 +99,11 @@ export function LoginForm() {
               />
             </label>
             {error && (
-              <div role="alert" className="flex items-center gap-2.5 rounded-lg border border-danger-line bg-danger-bg px-3.5 py-3 text-[15px] font-semibold text-danger">
-                <Icon name="alertas" />
+              <div
+                role="alert"
+                className="flex items-center gap-2.5 rounded-lg border border-danger-line bg-danger-bg px-3.5 py-3 text-[15px] font-semibold text-danger"
+              >
+                <Icon name="alerts" />
                 {error}
               </div>
             )}

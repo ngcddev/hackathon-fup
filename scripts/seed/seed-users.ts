@@ -83,7 +83,8 @@ async function main() {
         console.log(`[${role}] Cuenta de Auth existente (${email}): contraseña restablecida desde .env.`);
       } else {
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-        if (error || !data.user) throw new Error(`No se pudo crear la cuenta ${email}: ${error?.message ?? 'sin usuario'}`);
+        if (error || !data.user)
+          throw new Error(`No se pudo crear la cuenta ${email}: ${error?.message ?? 'sin usuario'}`);
         userId = data.user.id;
         console.log(`[${role}] Cuenta de Auth creada (${email}).`);
       }

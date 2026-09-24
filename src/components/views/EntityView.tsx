@@ -7,7 +7,7 @@ import type { ImportTarget } from '@/lib/types/api';
 import { importPermissionFor } from '@/lib/auth/permissions';
 import { ImportPanel, useProblemBatches } from './import/ImportPanel';
 
-type Tab = 'datos' | 'corregir';
+type Tab = 'data' | 'fix';
 
 interface EntityViewProps {
   target: ImportTarget | null; // tabla que se puede corregir desde esta pantalla
@@ -18,7 +18,7 @@ interface EntityViewProps {
 // Pantallas de datos con dos pestañas: el estado actual y la corrección/importación de datos.
 export function EntityView({ target, note, children }: EntityViewProps) {
   const { can } = useSession();
-  const [tab, setTab] = useState<Tab>('datos');
+  const [tab, setTab] = useState<Tab>('data');
   const canImport = target !== null && can(importPermissionFor(target));
   const problems = useProblemBatches(canImport ? target : null);
 
@@ -28,11 +28,11 @@ export function EntityView({ target, note, children }: EntityViewProps) {
         active={tab}
         onChange={setTab}
         tabs={[
-          { key: 'datos', label: 'Estado y datos' },
-          { key: 'corregir', label: <>Corregir y actualizar datos{problems > 0 && <CountBadge n={problems} />}</> },
+          { key: 'data', label: 'Estado y datos' },
+          { key: 'fix', label: <>Corregir y actualizar datos{problems > 0 && <CountBadge n={problems} />}</> },
         ]}
       />
-      {tab === 'datos' ? children : <ImportPanel target={target} note={note} />}
+      {tab === 'data' ? children : <ImportPanel target={target} note={note} />}
     </div>
   );
 }

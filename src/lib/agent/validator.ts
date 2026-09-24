@@ -13,8 +13,7 @@ import { AGENT_VIEWS, type AgentView } from '../types/api';
 export const MAX_LIMIT = 200;
 
 export type ValidationResult =
-  | { ok: true; sql: string; viewsUsed: AgentView[]; limitApplied: boolean }
-  | { ok: false; reason: string };
+  { ok: true; sql: string; viewsUsed: AgentView[]; limitApplied: boolean } | { ok: false; reason: string };
 
 type Json = unknown;
 type JsonObject = Record<string, Json>;
@@ -26,41 +25,154 @@ const VIEW_SET: ReadonlySet<string> = new Set(AGENT_VIEWS);
 // Nodos del árbol que una consulta de solo lectura del agente puede contener.
 // Cualquier otro (InsertStmt, CopyStmt, RangeFunction, SQLValueFunction, LockingClause...) se rechaza.
 const ALLOWED_NODES: ReadonlySet<string> = new Set([
-  'SelectStmt', 'ResTarget', 'ColumnRef', 'A_Const', 'A_Expr', 'A_Star', 'A_ArrayExpr',
-  'BoolExpr', 'RowExpr', 'FuncCall', 'TypeCast', 'TypeName', 'CaseExpr', 'CaseWhen', 'CoalesceExpr',
-  'MinMaxExpr', 'NullTest', 'BooleanTest', 'SubLink', 'RangeVar', 'RangeSubselect', 'JoinExpr',
-  'Alias', 'SortBy', 'WindowDef', 'WithClause', 'CommonTableExpr', 'GroupingSet', 'GroupingFunc',
-  'String', 'Integer', 'Float', 'Boolean', 'BitString', 'List',
+  'SelectStmt',
+  'ResTarget',
+  'ColumnRef',
+  'A_Const',
+  'A_Expr',
+  'A_Star',
+  'A_ArrayExpr',
+  'BoolExpr',
+  'RowExpr',
+  'FuncCall',
+  'TypeCast',
+  'TypeName',
+  'CaseExpr',
+  'CaseWhen',
+  'CoalesceExpr',
+  'MinMaxExpr',
+  'NullTest',
+  'BooleanTest',
+  'SubLink',
+  'RangeVar',
+  'RangeSubselect',
+  'JoinExpr',
+  'Alias',
+  'SortBy',
+  'WindowDef',
+  'WithClause',
+  'CommonTableExpr',
+  'GroupingSet',
+  'GroupingFunc',
+  'String',
+  'Integer',
+  'Float',
+  'Boolean',
+  'BitString',
+  'List',
 ]);
 
 // Funciones integradas permitidas (agregaciones, ventanas, fechas, texto y matemáticas básicas).
 // El analizador de Postgres reescribe EXTRACT, TRIM, POSITION, etc. como pg_catalog.<nombre>.
 const ALLOWED_FUNCTIONS: ReadonlySet<string> = new Set([
   // agregaciones
-  'count', 'sum', 'avg', 'min', 'max', 'stddev', 'variance', 'bool_and', 'bool_or', 'every',
-  'string_agg', 'array_agg', 'percentile_cont', 'percentile_disc', 'mode',
+  'count',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'stddev',
+  'variance',
+  'bool_and',
+  'bool_or',
+  'every',
+  'string_agg',
+  'array_agg',
+  'percentile_cont',
+  'percentile_disc',
+  'mode',
   // ventanas
-  'row_number', 'rank', 'dense_rank', 'percent_rank', 'ntile', 'lag', 'lead', 'first_value',
-  'last_value', 'nth_value',
+  'row_number',
+  'rank',
+  'dense_rank',
+  'percent_rank',
+  'ntile',
+  'lag',
+  'lead',
+  'first_value',
+  'last_value',
+  'nth_value',
   // fechas
-  'date_trunc', 'date_part', 'extract', 'age', 'to_char', 'to_date', 'make_date', 'timezone',
+  'date_trunc',
+  'date_part',
+  'extract',
+  'age',
+  'to_char',
+  'to_date',
+  'make_date',
+  'timezone',
   // texto
-  'lower', 'upper', 'initcap', 'length', 'char_length', 'substr', 'substring', 'trim', 'btrim',
-  'ltrim', 'rtrim', 'replace', 'concat', 'concat_ws', 'left', 'right', 'split_part', 'position',
-  'strpos', 'lpad', 'rpad', 'translate', 'overlay',
+  'lower',
+  'upper',
+  'initcap',
+  'length',
+  'char_length',
+  'substr',
+  'substring',
+  'trim',
+  'btrim',
+  'ltrim',
+  'rtrim',
+  'replace',
+  'concat',
+  'concat_ws',
+  'left',
+  'right',
+  'split_part',
+  'position',
+  'strpos',
+  'lpad',
+  'rpad',
+  'translate',
+  'overlay',
   // matemáticas
-  'round', 'ceil', 'ceiling', 'floor', 'abs', 'trunc', 'sign', 'mod', 'power', 'sqrt', 'ln',
-  'log', 'exp', 'div',
+  'round',
+  'ceil',
+  'ceiling',
+  'floor',
+  'abs',
+  'trunc',
+  'sign',
+  'mod',
+  'power',
+  'sqrt',
+  'ln',
+  'log',
+  'exp',
+  'div',
 ]);
 
 const REFERENCE_DATE_FN = ['agent', 'reference_date'] as const;
 
 // Tipos a los que se puede convertir con ::tipo (excluye regclass, oid, regproc, etc.).
 const ALLOWED_TYPES: ReadonlySet<string> = new Set([
-  'int', 'int2', 'int4', 'int8', 'integer', 'smallint', 'bigint', 'numeric', 'decimal', 'float',
-  'float4', 'float8', 'real', 'double precision', 'text', 'varchar', 'bpchar', 'char',
-  'character varying', 'character', 'date', 'timestamp', 'timestamptz', 'time', 'interval',
-  'bool', 'boolean',
+  'int',
+  'int2',
+  'int4',
+  'int8',
+  'integer',
+  'smallint',
+  'bigint',
+  'numeric',
+  'decimal',
+  'float',
+  'float4',
+  'float8',
+  'real',
+  'double precision',
+  'text',
+  'varchar',
+  'bpchar',
+  'char',
+  'character varying',
+  'character',
+  'date',
+  'timestamp',
+  'timestamptz',
+  'time',
+  'interval',
+  'bool',
+  'boolean',
 ]);
 
 // ------------------------------------------------------------------ Revisión por regex
@@ -272,7 +384,11 @@ function parseSingleSelect(sql: string): { tree: ReturnType<typeof parseSync>; s
 
 function checkTree(tree: ReturnType<typeof parseSync>): Set<AgentView> {
   const state: WalkState = { views: new Set() };
-  walk((tree.stmts ?? []).map((s) => s.stmt), new Set(), state);
+  walk(
+    (tree.stmts ?? []).map((s) => s.stmt),
+    new Set(),
+    state,
+  );
   return state.views;
 }
 

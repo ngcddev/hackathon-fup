@@ -3,9 +3,11 @@ import { canonicalizeLiterals } from './literals';
 
 describe('canonicalizeLiterals', () => {
   it('corrige mayúsculas y tildes de valores conocidos', () => {
-    expect(canonicalizeLiterals("SELECT 1 FROM agent.v_admissions WHERE zone = 'RURAL' AND admission_class='hospitalario' LIMIT 1")).toBe(
-      "SELECT 1 FROM agent.v_admissions WHERE zone = 'Rural' AND admission_class='Hospitalario' LIMIT 1",
-    );
+    expect(
+      canonicalizeLiterals(
+        "SELECT 1 FROM agent.v_admissions WHERE zone = 'RURAL' AND admission_class='hospitalario' LIMIT 1",
+      ),
+    ).toBe("SELECT 1 FROM agent.v_admissions WHERE zone = 'Rural' AND admission_class='Hospitalario' LIMIT 1");
     expect(canonicalizeLiterals("WHERE a.service <> 'Unidad de Cuidado Intensivo'")).toBe(
       "WHERE a.service <> 'UNIDAD DE CUIDADO INTENSIVO'",
     );

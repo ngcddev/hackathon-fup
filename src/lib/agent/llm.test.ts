@@ -6,7 +6,9 @@ import { AGENT_SERVICES } from './schema.generated';
 
 describe('parseDecision', () => {
   it('acepta las tres formas', () => {
-    expect(parseDecision('{"type":"sql","sql":"SELECT 1 FROM agent.v_admissions","answer_template":"Hay {n}"}')).toEqual({
+    expect(
+      parseDecision('{"type":"sql","sql":"SELECT 1 FROM agent.v_admissions","answer_template":"Hay {n}"}'),
+    ).toEqual({
       type: 'sql',
       sql: 'SELECT 1 FROM agent.v_admissions',
       answerTemplate: 'Hay {n}',
@@ -24,9 +26,14 @@ describe('parseDecision', () => {
 
   it('quita las tildes de los literales de ILIKE', () => {
     const decision = parseDecision(
-      JSON.stringify({ type: 'sql', sql: "SELECT 1 FROM agent.v_diagnosis_monthly WHERE diagnosis_name ILIKE '%apendícitis%' LIMIT 1" }),
+      JSON.stringify({
+        type: 'sql',
+        sql: "SELECT 1 FROM agent.v_diagnosis_monthly WHERE diagnosis_name ILIKE '%apendícitis%' LIMIT 1",
+      }),
     );
-    expect(decision).toMatchObject({ sql: "SELECT 1 FROM agent.v_diagnosis_monthly WHERE diagnosis_name ILIKE '%apendicitis%' LIMIT 1" });
+    expect(decision).toMatchObject({
+      sql: "SELECT 1 FROM agent.v_diagnosis_monthly WHERE diagnosis_name ILIKE '%apendicitis%' LIMIT 1",
+    });
   });
 
   it('tolera bloques ```json', () => {
@@ -67,7 +74,11 @@ describe('fillAnswerTemplate', () => {
       { dia: '2026-09-21', ingresos: 75 },
     ].reverse(); // ordenado por fecha descendente: la primera fila NO es la mayor
     expect(
-      fillAnswerTemplate('Hubo {row_count} días con ingresos; el día con más ingresos fue {dia}, con {ingresos}.', cols, byDate),
+      fillAnswerTemplate(
+        'Hubo {row_count} días con ingresos; el día con más ingresos fue {dia}, con {ingresos}.',
+        cols,
+        byDate,
+      ),
     ).toBe('Hubo 2 días con ingresos.');
     const byCount = [...byDate].sort((a, b) => b.ingresos - a.ingresos);
     expect(fillAnswerTemplate('El día con más ingresos fue {dia}, con {ingresos}.', cols, byCount)).toBe(

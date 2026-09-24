@@ -20,7 +20,8 @@ import type {
 type Modal = { kind: 'create' } | { kind: 'role'; user: UserSummary } | { kind: 'reset'; user: UserSummary } | null;
 
 const FIELD = 'h-12 rounded-lg border-[1.5px] border-slate-300 bg-white px-3.5 text-base text-ink';
-const GHOST_BTN = 'h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold disabled:opacity-50';
+const GHOST_BTN =
+  'h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold disabled:opacity-50';
 
 // Contraseña temporal legible de 13 caracteres (el mínimo del contrato es 10).
 function temporaryPassword() {
@@ -31,7 +32,7 @@ function temporaryPassword() {
   return `HSL-${letters}-${digits}`;
 }
 
-export function UsuariosView() {
+export function UsersView() {
   const { me } = useSession();
   const toast = useToast();
   const { data, loading, error, reload } = useApi<ListUsersResponse>('/api/admin/users');
@@ -40,12 +41,19 @@ export function UsuariosView() {
 
   const users = useMemo(() => data?.users ?? [], [data]);
 
-  if (!data) return loading ? <LoadingState label="los usuarios" /> : <ErrorState label="los usuarios" message={error ?? undefined} onRetry={reload} />;
+  if (!data)
+    return loading ? (
+      <LoadingState label="los usuarios" />
+    ) : (
+      <ErrorState label="los usuarios" message={error ?? undefined} onRetry={reload} />
+    );
 
   const toggleActive = async (user: UserSummary) => {
     setBusyId(user.user_id);
     try {
-      await apiPatch<UserResponse>(`/api/admin/users/${user.user_id}`, { is_active: !user.is_active } satisfies UpdateUserRequest);
+      await apiPatch<UserResponse>(`/api/admin/users/${user.user_id}`, {
+        is_active: !user.is_active,
+      } satisfies UpdateUserRequest);
       toast(`${user.full_name} ${user.is_active ? 'desactivado' : 'activado'}`);
       reload();
     } catch (e) {
@@ -61,7 +69,11 @@ export function UsuariosView() {
         <div className="text-base text-muted">
           {users.length} usuarios · {users.filter((u) => u.is_active).length} activos
         </div>
-        <button type="button" onClick={() => setModal({ kind: 'create' })} className="h-12 cursor-pointer rounded-lg border-0 bg-leaf px-[22px] text-base font-bold text-white hover:bg-forest">
+        <button
+          type="button"
+          onClick={() => setModal({ kind: 'create' })}
+          className="h-12 cursor-pointer rounded-lg border-0 bg-leaf px-[22px] text-base font-bold text-white hover:bg-forest"
+        >
           + Nuevo usuario
         </button>
       </div>
@@ -71,7 +83,13 @@ export function UsuariosView() {
           <thead>
             <tr className="bg-canvas text-left">
               {['Nombre', 'Correo', 'Rol', 'Estado', 'Creado', 'Acciones'].map((h, i) => (
-                <th key={h} className={cn('px-4 py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted', i === 5 && 'text-right')}>
+                <th
+                  key={h}
+                  className={cn(
+                    'px-4 py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted',
+                    i === 5 && 'text-right',
+                  )}
+                >
                   {h}
                 </th>
               ))}
@@ -82,7 +100,9 @@ export function UsuariosView() {
               <tr key={u.user_id} className="border-t border-line">
                 <td className="px-4 py-3 font-bold">
                   {u.full_name}
-                  {u.must_change_password && <div className="text-[13px] font-medium text-muted">Debe cambiar su contraseña</div>}
+                  {u.must_change_password && (
+                    <div className="text-[13px] font-medium text-muted">Debe cambiar su contraseña</div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-700">{u.email}</td>
                 <td className="px-4 py-3">{ROLE_LABEL[u.role]}</td>
@@ -138,7 +158,15 @@ export function UsuariosView() {
   );
 }
 
-function UserModal({ modal, onClose, onDone }: { modal: NonNullable<Modal>; onClose: () => void; onDone: (message: string) => void }) {
+function UserModal({
+  modal,
+  onClose,
+  onDone,
+}: {
+  modal: NonNullable<Modal>;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
   const initialRole: Role = modal.kind === 'role' ? modal.user.role : 'director';
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -147,13 +175,16 @@ function UserModal({ modal, onClose, onDone }: { modal: NonNullable<Modal>; onCl
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const title = modal.kind === 'create' ? 'Nuevo usuario' : modal.kind === 'role' ? 'Editar rol' : 'Restablecer contraseña';
+  const title =
+    modal.kind === 'create' ? 'Nuevo usuario' : modal.kind === 'role' ? 'Editar rol' : 'Restablecer contraseña';
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
-    if (modal.kind === 'create' && (!fullName.trim() || !/^\S+@\S+\.\S+$/.test(email))) return setError('Escriba un nombre y un correo válido.');
-    if (modal.kind !== 'role' && password.length < 10) return setError('La contraseña temporal debe tener al menos 10 caracteres.');
+    if (modal.kind === 'create' && (!fullName.trim() || !/^\S+@\S+\.\S+$/.test(email)))
+      return setError('Escriba un nombre y un correo válido.');
+    if (modal.kind !== 'role' && password.length < 10)
+      return setError('La contraseña temporal debe tener al menos 10 caracteres.');
     setBusy(true);
     try {
       if (modal.kind === 'create') {
@@ -168,7 +199,9 @@ function UserModal({ modal, onClose, onDone }: { modal: NonNullable<Modal>; onCl
         await apiPatch<UserResponse>(`/api/admin/users/${modal.user.user_id}`, { role } satisfies UpdateUserRequest);
         onDone('Rol actualizado');
       } else {
-        await apiPost<UserResponse>(`/api/admin/users/${modal.user.user_id}/reset-password`, { temporary_password: password } satisfies ResetPasswordRequest);
+        await apiPost<UserResponse>(`/api/admin/users/${modal.user.user_id}/reset-password`, {
+          temporary_password: password,
+        } satisfies ResetPasswordRequest);
         onDone(`Contraseña temporal asignada a ${modal.user.full_name}`);
       }
     } catch (e) {
@@ -179,7 +212,12 @@ function UserModal({ modal, onClose, onDone }: { modal: NonNullable<Modal>; onCl
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/55 p-4 sm:p-6">
-      <form onSubmit={submit} role="dialog" aria-modal="true" className="flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-float sm:p-7">
+      <form
+        onSubmit={submit}
+        role="dialog"
+        aria-modal="true"
+        className="flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-float sm:p-7"
+      >
         <h3 className="m-0 text-2xl font-extrabold">{title}</h3>
         {modal.kind === 'create' ? (
           <>
@@ -215,20 +253,32 @@ function UserModal({ modal, onClose, onDone }: { modal: NonNullable<Modal>; onCl
             Contraseña temporal
             <input value={password} onChange={(e) => setPassword(e.target.value)} className={cn(FIELD, 'font-mono')} />
             <span className="text-[13px] font-medium text-muted">
-              El usuario deberá cambiarla en su primer ingreso. Entréguesela por un canal seguro; después no se puede volver a ver.
+              El usuario deberá cambiarla en su primer ingreso. Entréguesela por un canal seguro; después no se puede
+              volver a ver.
             </span>
           </label>
         )}
         {error && (
-          <div role="alert" className="rounded-lg border border-danger-line bg-danger-bg px-3.5 py-2.5 text-sm font-semibold text-danger">
+          <div
+            role="alert"
+            className="rounded-lg border border-danger-line bg-danger-bg px-3.5 py-2.5 text-sm font-semibold text-danger"
+          >
             {error}
           </div>
         )}
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-5 text-[15px] font-semibold">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-5 text-[15px] font-semibold"
+          >
             Cancelar
           </button>
-          <button type="submit" disabled={busy} className="h-[46px] cursor-pointer rounded-lg border-0 bg-leaf px-5 text-[15px] font-bold text-white disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={busy}
+            className="h-[46px] cursor-pointer rounded-lg border-0 bg-leaf px-5 text-[15px] font-bold text-white disabled:opacity-60"
+          >
             {busy ? 'Guardando…' : 'Guardar'}
           </button>
         </div>

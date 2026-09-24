@@ -30,9 +30,26 @@ const columns: Column<SourceBatch>[] = [
   { key: 'user', label: 'Usuario', value: (b) => b.imported_by?.full_name ?? 'Sistema' },
   { key: 'date', label: 'Fecha', value: (b) => b.imported_at, render: (b) => fmtDateTime(b.imported_at) },
   { key: 'read', label: 'Leídas', align: 'right', value: (b) => b.rows_read, render: (b) => fmtInt(b.rows_read) },
-  { key: 'loaded', label: 'Cargadas', align: 'right', value: (b) => b.rows_loaded, render: (b) => fmtInt(b.rows_loaded) },
-  { key: 'rejected', label: 'Rechazadas', align: 'right', value: (b) => b.rows_rejected, render: (b) => fmtInt(b.rows_rejected) },
-  { key: 'status', label: 'Estado', value: (b) => batchStatusLabel(b.status), render: (b) => <StatusBadge status={b.status} simulated={b.is_simulated} /> },
+  {
+    key: 'loaded',
+    label: 'Cargadas',
+    align: 'right',
+    value: (b) => b.rows_loaded,
+    render: (b) => fmtInt(b.rows_loaded),
+  },
+  {
+    key: 'rejected',
+    label: 'Rechazadas',
+    align: 'right',
+    value: (b) => b.rows_rejected,
+    render: (b) => fmtInt(b.rows_rejected),
+  },
+  {
+    key: 'status',
+    label: 'Estado',
+    value: (b) => batchStatusLabel(b.status),
+    render: (b) => <StatusBadge status={b.status} simulated={b.is_simulated} />,
+  },
 ];
 
 const filters: TableFilter<SourceBatch>[] = [
@@ -40,7 +57,7 @@ const filters: TableFilter<SourceBatch>[] = [
   { label: 'Todos los estados', get: (b) => batchStatusLabel(b.status) },
 ];
 
-export function FuentesView() {
+export function SourcesView() {
   const { data, loading, error, reload } = useApi<SourcesResponse>('/api/sources');
   const { can } = useSession();
   const { reload: reloadKpis } = useKpis();
@@ -49,7 +66,12 @@ export function FuentesView() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  if (!data) return loading ? <LoadingState label="las fuentes de datos" /> : <ErrorState label="las fuentes de datos" message={error ?? undefined} onRetry={reload} />;
+  if (!data)
+    return loading ? (
+      <LoadingState label="las fuentes de datos" />
+    ) : (
+      <ErrorState label="las fuentes de datos" message={error ?? undefined} onRetry={reload} />
+    );
 
   const totalRows = data.tables.reduce((sum, t) => sum + t.rows, 0);
   const simulatedRows = data.tables.reduce((sum, t) => sum + t.simulated_rows, 0);
@@ -85,10 +107,19 @@ export function FuentesView() {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <Stat
           label="Última carga aplicada"
-          value={<span className="text-[26px] leading-tight sm:text-[34px]">{data.last_load_at ? fmtDateTime(data.last_load_at) : '—'}</span>}
+          value={
+            <span className="text-[26px] leading-tight sm:text-[34px]">
+              {data.last_load_at ? fmtDateTime(data.last_load_at) : '—'}
+            </span>
+          }
           sub={applied ? `${applied.target_table} · ${applied.imported_by?.full_name ?? 'Sistema'}` : undefined}
         />
-        <Stat label="Datos simulados" value={fmtPct(data.simulated_pct)} sub={`${fmtInt(simulatedRows)} de ${fmtInt(totalRows)} filas`} origin="Simulado" />
+        <Stat
+          label="Datos simulados"
+          value={fmtPct(data.simulated_pct)}
+          sub={`${fmtInt(simulatedRows)} de ${fmtInt(totalRows)} filas`}
+          origin="Simulado"
+        />
         <Stat label="Cargas con problemas" value={problems} sub="rechazadas, entre los 50 lotes más recientes" />
       </div>
 
@@ -101,7 +132,9 @@ export function FuentesView() {
               <span className="text-[26px] font-extrabold">
                 {fmtInt(t.rows)} <span className="text-sm font-semibold text-muted">filas</span>
               </span>
-              <span className={`self-start rounded-full border ${t.simulated_rows ? 'border-dashed' : ''} border-slate-500 px-2 py-0.5 text-xs font-bold text-muted`}>
+              <span
+                className={`self-start rounded-full border ${t.simulated_rows ? 'border-dashed' : ''} border-slate-500 px-2 py-0.5 text-xs font-bold text-muted`}
+              >
                 {fmtInt(t.simulated_rows)} simuladas
               </span>
             </div>
@@ -125,18 +158,29 @@ export function FuentesView() {
       {selected && (
         <>
           <div onClick={close} className="fixed inset-0 z-[150] bg-ink/50" />
-          <aside role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 z-[151] flex w-[min(640px,100vw)] flex-col border-l border-line bg-white shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.2)]">
+          <aside
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-y-0 right-0 z-[151] flex w-[min(640px,100vw)] flex-col border-l border-line bg-white shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.2)]"
+          >
             <div className="flex items-start justify-between gap-3 border-b border-line px-6 py-[22px]">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <span className="text-sm font-bold text-muted">
                   {shortId(selected.batch_id)} · {LOAD_TYPE[selected.load_type]}
                 </span>
-                <span className="break-all font-mono text-xl font-extrabold">{selected.file_name ?? 'Sin archivo'}</span>
+                <span className="break-all font-mono text-xl font-extrabold">
+                  {selected.file_name ?? 'Sin archivo'}
+                </span>
                 <span className="self-start">
                   <StatusBadge status={selected.status} simulated={selected.is_simulated} />
                 </span>
               </div>
-              <button type="button" onClick={close} aria-label="Cerrar" className="size-10 shrink-0 cursor-pointer rounded-lg border border-line bg-white text-xl">
+              <button
+                type="button"
+                onClick={close}
+                aria-label="Cerrar"
+                className="size-10 shrink-0 cursor-pointer rounded-lg border border-line bg-white text-xl"
+              >
                 ×
               </button>
             </div>
@@ -154,15 +198,24 @@ export function FuentesView() {
               </div>
               {selected.rows_rejected > 0 && (
                 <Card className="p-4 text-[15px] leading-relaxed text-slate-700">
-                  Este lote rechazó {fmtInt(selected.rows_rejected)} filas. El reporte fila por fila se entrega al validar el archivo en la pantalla de corrección de cada entidad.
+                  Este lote rechazó {fmtInt(selected.rows_rejected)} filas. El reporte fila por fila se entrega al
+                  validar el archivo en la pantalla de corrección de cada entidad.
                 </Card>
               )}
             </div>
             {canRevert && (
               <div className="flex items-center justify-end gap-3 border-t border-line px-6 py-4">
-                {confirming && <span className="mr-auto text-[15px] font-semibold">¿Revertir este lote y recalcular KPIs y alertas?</span>}
                 {confirming && (
-                  <button type="button" onClick={() => setConfirming(false)} className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-[18px] text-[15px] font-semibold">
+                  <span className="mr-auto text-[15px] font-semibold">
+                    ¿Revertir este lote y recalcular KPIs y alertas?
+                  </span>
+                )}
+                {confirming && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-[18px] text-[15px] font-semibold"
+                  >
                     Cancelar
                   </button>
                 )}
@@ -183,7 +236,17 @@ export function FuentesView() {
   );
 }
 
-function Detail({ label, children, mono, bold }: { label: string; children: React.ReactNode; mono?: boolean; bold?: boolean }) {
+function Detail({
+  label,
+  children,
+  mono,
+  bold,
+}: {
+  label: string;
+  children: React.ReactNode;
+  mono?: boolean;
+  bold?: boolean;
+}) {
   return (
     <div>
       <div className="text-[13px] font-semibold text-muted">{label}</div>

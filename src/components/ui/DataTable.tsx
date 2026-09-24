@@ -55,7 +55,11 @@ export function DataTable<Row>({
 
   const options = useMemo(
     () =>
-      filters.map((f) => [...new Set(rows.map((r) => f.get(r)).filter((v): v is string => v != null && v !== ''))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))),
+      filters.map((f) =>
+        [...new Set(rows.map((r) => f.get(r)).filter((v): v is string => v != null && v !== ''))].sort((a, b) =>
+          a.localeCompare(b, 'es', { numeric: true }),
+        ),
+      ),
     [filters, rows],
   );
 
@@ -66,7 +70,11 @@ export function DataTable<Row>({
         if (value && filters[Number(i)].get(row) !== value) return false;
       }
       if (!q) return true;
-      return columns.some((c) => String(c.value?.(row) ?? '').toLowerCase().includes(q));
+      return columns.some((c) =>
+        String(c.value?.(row) ?? '')
+          .toLowerCase()
+          .includes(q),
+      );
     });
     if (sort) {
       const col = columns.find((c) => c.key === sort.key);
@@ -77,7 +85,10 @@ export function DataTable<Row>({
           const y = get(b);
           if (x == null) return 1;
           if (y == null) return -1;
-          const cmp = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'es', { numeric: true });
+          const cmp =
+            typeof x === 'number' && typeof y === 'number'
+              ? x - y
+              : String(x).localeCompare(String(y), 'es', { numeric: true });
           return cmp * sort.dir;
         });
       }
@@ -144,7 +155,11 @@ export function DataTable<Row>({
               {columns.map((c) => {
                 const active = sort?.key === c.key;
                 return (
-                  <th key={c.key} className="border-b border-line p-0" aria-sort={active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                  <th
+                    key={c.key}
+                    className="border-b border-line p-0"
+                    aria-sort={active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort(c.key)}
@@ -170,7 +185,9 @@ export function DataTable<Row>({
               >
                 {columns.map((c) => (
                   <td key={c.key} className={cn('px-4 py-3 align-top text-navy', c.align === 'right' && 'text-right')}>
-                    <span className={cn('whitespace-nowrap', c.mono && 'font-mono', c.bold ? 'font-bold' : 'font-medium')}>
+                    <span
+                      className={cn('whitespace-nowrap', c.mono && 'font-mono', c.bold ? 'font-bold' : 'font-medium')}
+                    >
                       {c.render ? c.render(row) : (c.value?.(row) ?? '—')}
                     </span>
                   </td>
@@ -184,7 +201,9 @@ export function DataTable<Row>({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5">
         <span className="text-sm text-muted">
-          {visible.length ? `Mostrando ${current * pageSize + 1}–${Math.min(visible.length, current * pageSize + pageSize)} de ${fmtInt(visible.length)}` : 'Sin resultados'}
+          {visible.length
+            ? `Mostrando ${current * pageSize + 1}–${Math.min(visible.length, current * pageSize + pageSize)} de ${fmtInt(visible.length)}`
+            : 'Sin resultados'}
         </span>
         <div className="flex items-center gap-1.5">
           <button

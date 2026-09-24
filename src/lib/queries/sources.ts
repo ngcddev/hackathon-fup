@@ -62,24 +62,22 @@ export async function getSources(): Promise<SourcesResponse> {
 
   return {
     tables,
-    batches: batches.map(
-      (b): SourceBatch => ({
-        batch_id: b.batch_id,
-        load_type: b.load_type,
-        target_table: b.target_table,
-        file_name: b.file_name,
-        source_system: b.source_system,
-        imported_by: b.imported_by_user_id
-          ? { user_id: b.imported_by_user_id, full_name: b.imported_by_name ?? '' }
-          : null,
-        imported_at: b.imported_at.toISOString(),
-        rows_read: b.rows_read,
-        rows_loaded: b.rows_loaded,
-        rows_rejected: b.rows_rejected,
-        status: b.status,
-        is_simulated: b.is_simulated,
-      }),
-    ),
+    batches: batches.map((b): SourceBatch => ({
+      batch_id: b.batch_id,
+      load_type: b.load_type,
+      target_table: b.target_table,
+      file_name: b.file_name,
+      source_system: b.source_system,
+      imported_by: b.imported_by_user_id
+        ? { user_id: b.imported_by_user_id, full_name: b.imported_by_name ?? '' }
+        : null,
+      imported_at: b.imported_at.toISOString(),
+      rows_read: b.rows_read,
+      rows_loaded: b.rows_loaded,
+      rows_rejected: b.rows_rejected,
+      status: b.status,
+      is_simulated: b.is_simulated,
+    })),
     last_load_at: last?.last_load_at ? last.last_load_at.toISOString() : null,
     simulated_pct: total === 0 ? 0 : Math.round((simulated / total) * 1000) / 10,
   };

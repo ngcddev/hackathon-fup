@@ -10,12 +10,21 @@ export const API_ERROR_CATALOG = {
   PAYLOAD_TOO_LARGE: { status: 413, message: 'El contenido enviado supera el tamaño permitido.' },
   BATCH_REJECTED: { status: 422, message: 'El lote tiene filas inválidas y no se aplicó ningún dato.' },
   BATCH_INVALID_STATE: { status: 422, message: 'El lote no está en un estado que permita esta operación.' },
-  DUPLICATE_STOCK_DATE: { status: 422, message: 'Ya existe una foto de inventario con esa fecha para alguno de los medicamentos.' },
+  DUPLICATE_STOCK_DATE: {
+    status: 422,
+    message: 'Ya existe una foto de inventario con esa fecha para alguno de los medicamentos.',
+  },
   SENSITIVE_DATA_REQUESTED: { status: 422, message: 'No se pueden consultar datos que identifiquen a un paciente.' },
   OUT_OF_SCOPE: { status: 422, message: 'La pregunta está fuera del alcance de los datos disponibles.' },
   LAST_ADMIN_REQUIRED: { status: 422, message: 'Debe quedar al menos un administrador activo.' },
-  SELF_MODIFICATION_NOT_ALLOWED: { status: 422, message: 'No puedes desactivarte ni quitarte el rol de administrador a ti mismo.' },
-  AGENT_UNAVAILABLE: { status: 503, message: 'El asistente no está disponible en este momento. Intenta de nuevo en unos minutos.' },
+  SELF_MODIFICATION_NOT_ALLOWED: {
+    status: 422,
+    message: 'No puedes desactivarte ni quitarte el rol de administrador a ti mismo.',
+  },
+  AGENT_UNAVAILABLE: {
+    status: 503,
+    message: 'El asistente no está disponible en este momento. Intenta de nuevo en unos minutos.',
+  },
   INTERNAL_ERROR: { status: 500, message: 'Ocurrió un error inesperado. Intenta de nuevo en unos minutos.' },
 } as const;
 

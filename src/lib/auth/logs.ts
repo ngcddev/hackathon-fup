@@ -68,7 +68,11 @@ function buildWhere(filters: LogFilters, userColumn: string, dateColumn: string)
     conditions.push(`${dateColumn} < (($${values.length}::date + 1)::timestamp AT TIME ZONE 'America/Bogota')`);
   }
   values.push(filters.limit);
-  return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', values, limitParam: `$${values.length}` };
+  return {
+    where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
+    values,
+    limitParam: `$${values.length}`,
+  };
 }
 
 interface QueryLogRow {

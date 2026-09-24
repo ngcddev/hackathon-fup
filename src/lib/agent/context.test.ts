@@ -16,12 +16,22 @@ describe('describeResult', () => {
   });
 
   it('con pocas filas no compara contra el promedio', () => {
-    const h = describeResult(['d', 'ingresos'], [{ d: 'A', ingresos: 254 }, { d: 'B', ingresos: 10 }]);
+    const h = describeResult(
+      ['d', 'ingresos'],
+      [
+        { d: 'A', ingresos: 254 },
+        { d: 'B', ingresos: 10 },
+      ],
+    );
     expect(h.join(' ')).not.toContain('promedio');
   });
 
   it('acepta fechas como objeto Date', () => {
-    const rows = [new Date('2026-09-15T05:00:00Z'), new Date('2026-09-16T05:00:00Z'), new Date('2026-09-17T05:00:00Z')].map((dia, i) => ({ dia, ingresos: [3, 9, 6][i] }));
+    const rows = [
+      new Date('2026-09-15T05:00:00Z'),
+      new Date('2026-09-16T05:00:00Z'),
+      new Date('2026-09-17T05:00:00Z'),
+    ].map((dia, i) => ({ dia, ingresos: [3, 9, 6][i] }));
     expect(describeResult(['dia', 'ingresos'], rows)[0]).toContain('9 (16/09/2026)');
   });
 
@@ -37,7 +47,10 @@ describe('describeResult', () => {
   });
 
   it('serie de tiempo: pico, tendencia y total', () => {
-    const rows = ['2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18'].map((dia, i) => ({ dia, ingresos: [10, 12, 20, 22][i] }));
+    const rows = ['2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18'].map((dia, i) => ({
+      dia,
+      ingresos: [10, 12, 20, 22][i],
+    }));
     const h = describeResult(['dia', 'ingresos'], rows);
     expect(h[0]).toBe('Pico de ingresos: 22 (18/09/2026); mínimo: 10 (15/09/2026); promedio: 16 por dia.');
     expect(h[1]).toBe('Tendencia: la segunda mitad del periodo está un 90,9 % por encima de la primera.');
@@ -46,7 +59,9 @@ describe('describeResult', () => {
 
   it('las horas numéricas cuentan como serie de tiempo', () => {
     const rows = [0, 1, 2].map((hora) => ({ hora, llegadas: [5, 9, 3][hora] }));
-    expect(describeResult(['hora', 'llegadas'], rows)[0]).toBe('Pico de llegadas: 9 (1); mínimo: 3 (2); promedio: 5,7 por hora.');
+    expect(describeResult(['hora', 'llegadas'], rows)[0]).toBe(
+      'Pico de llegadas: 9 (1); mínimo: 3 (2); promedio: 5,7 por hora.',
+    );
   });
 
   it('ignora la fila TOTAL de GROUPING SETS', () => {
@@ -60,7 +75,15 @@ describe('describeResult', () => {
 
   it('sin nada que resumir: una fila o sin medidas', () => {
     expect(describeResult(['pacientes'], [{ pacientes: 10 }])).toEqual([]);
-    expect(describeResult(['a', 'b'], [{ a: 'x', b: 'y' }, { a: 'z', b: 'w' }])).toEqual([]);
+    expect(
+      describeResult(
+        ['a', 'b'],
+        [
+          { a: 'x', b: 'y' },
+          { a: 'z', b: 'w' },
+        ],
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -74,7 +97,11 @@ describe('viewNotes', () => {
 
 describe('followUpQuestions', () => {
   it('prioriza las del LLM, completa con el plan B y no repite la pregunta hecha', () => {
-    const out = followUpQuestions('¿Cuántas camas de UCI están ocupadas hoy?', ['v_bed_occupancy'], ['¿Cuál es la ocupación de la UCI neonatal?']);
+    const out = followUpQuestions(
+      '¿Cuántas camas de UCI están ocupadas hoy?',
+      ['v_bed_occupancy'],
+      ['¿Cuál es la ocupación de la UCI neonatal?'],
+    );
     expect(out[0]).toBe('¿Cuál es la ocupación de la UCI neonatal?');
     expect(out).toContain('¿Cuál es la ocupación de camas por servicio hoy?');
     expect(out).not.toContain('¿Cuántas camas de UCI están ocupadas hoy?');

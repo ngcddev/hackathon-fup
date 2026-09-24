@@ -15,7 +15,7 @@ const FILTERS: Filter[] = ['all', 'stockout', 'occupancy', 'emergency_wait', 'su
 // Alertas visibles antes del desplegable; el resto se muestra al expandirlo.
 const VISIBLE_ALERTS = 2;
 
-export function AlertasView() {
+export function AlertsView() {
   const [filter, setFilter] = useState<Filter>('all');
   const [expanded, setExpanded] = useState(false);
 
@@ -53,7 +53,7 @@ export function AlertasView() {
               })}
               <span className="ml-auto flex gap-4 text-[15px] font-bold">
                 <span className="flex items-center gap-1.5 text-danger">
-                  <Icon name="alertas" size={16} strokeWidth={2.2} />
+                  <Icon name="alerts" size={16} strokeWidth={2.2} />
                   {critical} críticas
                 </span>
                 <span className="flex items-center gap-1.5 text-warn">
@@ -64,7 +64,9 @@ export function AlertasView() {
             </div>
 
             {list.length === 0 ? (
-              <EmptyState title="No hay alertas activas">Los indicadores están dentro de los umbrales definidos.</EmptyState>
+              <EmptyState title="No hay alertas activas">
+                Los indicadores están dentro de los umbrales definidos.
+              </EmptyState>
             ) : (
               <div className="flex flex-col gap-3">
                 {list.slice(0, expanded ? list.length : VISIBLE_ALERTS).map((a) => {
@@ -84,7 +86,14 @@ export function AlertasView() {
                           {a.is_simulated && <OriginBadge origin="Simulado" />}
                         </div>
                         <h3 className="m-0 text-xl font-bold">{a.title}</h3>
-                        <div className={cn('font-extrabold tracking-tight', a.message.length > 70 ? 'text-lg' : 'text-[22px] sm:text-[26px]')}>{a.message}</div>
+                        <div
+                          className={cn(
+                            'font-extrabold tracking-tight',
+                            a.message.length > 70 ? 'text-lg' : 'text-[22px] sm:text-[26px]',
+                          )}
+                        >
+                          {a.message}
+                        </div>
                         <div className="text-base text-slate-700">
                           <strong>Acción recomendada:</strong> {a.recommendation}
                         </div>

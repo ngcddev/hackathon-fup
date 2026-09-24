@@ -89,10 +89,18 @@ async function main() {
             );
             if (res.rows.length <= MAX_VALUES) values = res.rows.map((r) => String(r.v));
           } catch (error) {
-            console.warn(`AVISO  sin valores para ${name}.${c.column_name}:`, error instanceof Error ? error.message : error);
+            console.warn(
+              `AVISO  sin valores para ${name}.${c.column_name}:`,
+              error instanceof Error ? error.message : error,
+            );
           }
         }
-        columns.push({ name: c.column_name, type: c.data_type, comment: c.column_comment, ...(values ? { values } : {}) });
+        columns.push({
+          name: c.column_name,
+          type: c.data_type,
+          comment: c.column_comment,
+          ...(values ? { values } : {}),
+        });
       }
       views.push({ name, comment: cols[0].view_comment, columns });
     }
@@ -118,7 +126,9 @@ async function main() {
 
     const target = resolve('src/lib/agent/schema.generated.ts');
     writeFileSync(target, file, 'utf8');
-    console.log(`OK   ${views.length} vistas, ${views.reduce((n, v) => n + v.columns.length, 0)} columnas, ${services.rows.length} servicios → ${target}`);
+    console.log(
+      `OK   ${views.length} vistas, ${views.reduce((n, v) => n + v.columns.length, 0)} columnas, ${services.rows.length} servicios → ${target}`,
+    );
     console.log('Servicios:', services.rows.map((r) => r.service).join(' | '));
   } finally {
     await client.end();

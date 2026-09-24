@@ -9,10 +9,10 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
 
 // Pantalla donde se ve el detalle de cada tipo de alerta.
 export const ALERT_ROUTE: Record<AlertType, { href: string; label: string }> = {
-  stockout: { href: '/medicamentos', label: 'Medicamentos' },
-  occupancy: { href: '/camas', label: 'Camas' },
-  emergency_wait: { href: '/pacientes', label: 'Pacientes e ingresos' },
-  surgery_compliance: { href: '/cirugias', label: 'Cirugías' },
+  stockout: { href: '/drugs', label: 'Medicamentos' },
+  occupancy: { href: '/beds', label: 'Camas' },
+  emergency_wait: { href: '/patients', label: 'Pacientes e ingresos' },
+  surgery_compliance: { href: '/surgeries', label: 'Cirugías' },
 };
 
 // Meta de cumplimiento quirúrgico del hospital (S-11).

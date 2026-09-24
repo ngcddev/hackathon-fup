@@ -84,10 +84,14 @@ async function main() {
     });
     await check('SELECT sobre core.patients falla', () => expectDenied(agent, 'select 1 from core.patients limit 1'));
     await check('INSERT falla', () =>
-      expectDenied(agent, "insert into audit.query_log (user_id, question, origin, status, duration_ms) values (gen_random_uuid(), 'x', 'llm', 'ok', 0)"),
+      expectDenied(
+        agent,
+        "insert into audit.query_log (user_id, question, origin, status, duration_ms) values (gen_random_uuid(), 'x', 'llm', 'ok', 0)",
+      ),
     );
   } else {
-    for (const n of ['reference_date', 'transaction_read_only', 'SELECT sobre core.patients', 'INSERT']) report(`agent_ro: ${n}`, false, 'sin conexión');
+    for (const n of ['reference_date', 'transaction_read_only', 'SELECT sobre core.patients', 'INSERT'])
+      report(`agent_ro: ${n}`, false, 'sin conexión');
   }
 
   console.log('3. Consulta parametrizada con app_backend');
@@ -104,7 +108,9 @@ async function main() {
   console.log('4. importer');
   const importer = clients.importer;
   if (importer) {
-    await check('SELECT sobre core.admissions falla', () => expectDenied(importer, 'select 1 from core.admissions limit 1'));
+    await check('SELECT sobre core.admissions falla', () =>
+      expectDenied(importer, 'select 1 from core.admissions limit 1'),
+    );
   } else {
     report('importer: SELECT sobre core.admissions', false, 'sin conexión');
   }

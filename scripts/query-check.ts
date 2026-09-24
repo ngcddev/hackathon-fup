@@ -82,7 +82,11 @@ interface DemoCase {
 const DEMO: DemoCase[] = [
   {
     name: 'P1 UCI ocupadas hoy (30 de 46, 65,2 %)',
-    questions: ['¿Cuántas camas de UCI están ocupadas hoy?', 'camas uci ocupadas', 'ocupación de la unidad de cuidados intensivos'],
+    questions: [
+      '¿Cuántas camas de UCI están ocupadas hoy?',
+      'camas uci ocupadas',
+      'ocupación de la unidad de cuidados intensivos',
+    ],
     verify: (b) => {
       const total = rowsOf(b).find((r) => r[0] === 'TOTAL UCI');
       const answer = String(b.answer);
@@ -92,30 +96,46 @@ const DEMO: DemoCase[] = [
   },
   {
     name: 'P2 medicamentos con menos de 5 días (10, simulados)',
-    questions: ['¿Cuáles son los medicamentos con menos de 5 días de inventario?', 'medicamentos críticos', 'medicinas con menos de cinco dias de stock'],
+    questions: [
+      '¿Cuáles son los medicamentos con menos de 5 días de inventario?',
+      'medicamentos críticos',
+      'medicinas con menos de cinco dias de stock',
+    ],
     verify: (b) => {
       if (b.row_count !== 10) return `row_count=${String(b.row_count)}`;
       if (b.includes_simulated_data !== true) return 'includes_simulated_data no es true';
       const first = rowsOf(b)[0];
-      if (!String(first?.[0]).startsWith('LOSARTAN 50 mg') || first?.[3] !== 1.4) return `primero=${JSON.stringify(first)}`;
+      if (!String(first?.[0]).startsWith('LOSARTAN 50 mg') || first?.[3] !== 1.4)
+        return `primero=${JSON.stringify(first)}`;
       return null;
     },
   },
   {
     name: 'P3 espera en urgencias última semana (62,1 min, 796 ingresos)',
-    questions: ['¿Cuál es el tiempo de espera promedio en urgencias en la última semana?', '¿cuánto se demoran en urgencias esta semana?', 'espera promedio urgencias ultima semana'],
+    questions: [
+      '¿Cuál es el tiempo de espera promedio en urgencias en la última semana?',
+      '¿cuánto se demoran en urgencias esta semana?',
+      'espera promedio urgencias ultima semana',
+    ],
     verify: (b) => {
       const total = rowsOf(b).find((r) => r[0] === 'TOTAL');
       if (!total || total[1] !== 796 || total[2] !== 62.1) return `total=${JSON.stringify(total)}`;
-      return String(b.answer).startsWith('El tiempo promedio fue de 62,1 minutos') ? null : `answer=${String(b.answer)}`;
+      return String(b.answer).startsWith('El tiempo promedio fue de 62,1 minutos')
+        ? null
+        : `answer=${String(b.answer)}`;
     },
   },
   {
     name: 'P4 servicio con más pacientes este mes (Pediatría 405)',
-    questions: ['¿Qué servicio tiene más pacientes ingresados este mes?', 'servicio con más ingresos este mes', 'que servicio recibe mas pacientes'],
+    questions: [
+      '¿Qué servicio tiene más pacientes ingresados este mes?',
+      'servicio con más ingresos este mes',
+      'que servicio recibe mas pacientes',
+    ],
     verify: (b) => {
       const counts = rowsOf(b).map((r) => r[1]);
-      if (JSON.stringify(counts) !== JSON.stringify([405, 394, 235, 153, 95])) return `pacientes=${JSON.stringify(counts)}`;
+      if (JSON.stringify(counts) !== JSON.stringify([405, 394, 235, 153, 95]))
+        return `pacientes=${JSON.stringify(counts)}`;
       return String(rowsOf(b)[0]?.[0]) === 'PEDIATRIA' ? null : `primero=${String(rowsOf(b)[0]?.[0])}`;
     },
   },
@@ -148,7 +168,8 @@ async function main() {
   everything.push(sensitive.raw);
   report(
     '3. Pregunta sobre una persona → 422 SENSITIVE_DATA_REQUESTED',
-    sensitive.status === 422 && (sensitive.body.error as { code?: string } | undefined)?.code === 'SENSITIVE_DATA_REQUESTED',
+    sensitive.status === 422 &&
+      (sensitive.body.error as { code?: string } | undefined)?.code === 'SENSITIVE_DATA_REQUESTED',
     `HTTP ${sensitive.status}`,
   );
 
@@ -184,7 +205,11 @@ async function main() {
   // 7. Pruebas del validador.
   const vitest = spawnSync('npx vitest run', { shell: true, encoding: 'utf8' });
   const summary = (vitest.stdout + vitest.stderr).split('\n').find((l) => /Tests\s/.test(l)) ?? '';
-  report('7. npx vitest run pasa todas las pruebas', vitest.status === 0, summary.replace(/\u001b\[[0-9;]*m/g, '').trim());
+  report(
+    '7. npx vitest run pasa todas las pruebas',
+    vitest.status === 0,
+    summary.replace(/\u001b\[[0-9;]*m/g, '').trim(),
+  );
 
   console.log(failures === 0 ? '\nTODO OK' : `\n${failures} prueba(s) con FALLO`);
   process.exit(failures === 0 ? 0 : 1);

@@ -80,7 +80,10 @@ function toChunks(rows: ImportRow[]): ImportRow[][] {
   let bytes = 0;
   for (const row of rows) {
     const size = JSON.stringify(row).length;
-    if (current.length >= IMPORT_LIMITS.recommended_chunk_rows || (current.length > 0 && bytes + size > CHUNK_TARGET_BYTES)) {
+    if (
+      current.length >= IMPORT_LIMITS.recommended_chunk_rows ||
+      (current.length > 0 && bytes + size > CHUNK_TARGET_BYTES)
+    ) {
       chunks.push(current);
       current = [];
       bytes = 0;
@@ -105,11 +108,17 @@ export function ImportPanel({ target, note }: ImportPanelProps) {
     return can('import:his_tables') ? (
       <Notice>La importación incremental de las tablas del HIS aún no está habilitada en el servidor. {note}</Notice>
     ) : (
-      <div className="rounded-2xl border border-line bg-white px-6 py-10 text-center text-[17px] font-medium text-muted">Solo lectura para su rol</div>
+      <div className="rounded-2xl border border-line bg-white px-6 py-10 text-center text-[17px] font-medium text-muted">
+        Solo lectura para su rol
+      </div>
     );
   }
   if (!can(importPermissionFor(target))) {
-    return <div className="rounded-2xl border border-line bg-white px-6 py-10 text-center text-[17px] font-medium text-muted">Solo lectura para su rol</div>;
+    return (
+      <div className="rounded-2xl border border-line bg-white px-6 py-10 text-center text-[17px] font-medium text-muted">
+        Solo lectura para su rol
+      </div>
+    );
   }
   return <ImportWizard target={target} note={note} />;
 }
@@ -133,18 +142,30 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
   const [fileError, setFileError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [validation, setValidation] = useState<{ phase: Phase; progress: Progress; failure: Failure | null; batchId: string | null }>({
+  const [validation, setValidation] = useState<{
+    phase: Phase;
+    progress: Progress;
+    failure: Failure | null;
+    batchId: string | null;
+  }>({
     phase: 'idle',
     progress: { done: 0, total: 0 },
     failure: null,
     batchId: null,
   });
-  const [apply, setApply] = useState<{ phase: Phase; result: ApplyBatchResponse | null; error: string }>({ phase: 'idle', result: null, error: '' });
+  const [apply, setApply] = useState<{ phase: Phase; result: ApplyBatchResponse | null; error: string }>({
+    phase: 'idle',
+    result: null,
+    error: '',
+  });
   const [correcting, setCorrecting] = useState<SourceBatch | null>(null);
   const [confirmRevert, setConfirmRevert] = useState<SourceBatch | null>(null);
   const picker = useRef<HTMLInputElement>(null);
 
-  const batches = useMemo(() => (sources.data?.batches ?? []).filter((b) => b.target_table === target), [sources.data, target]);
+  const batches = useMemo(
+    () => (sources.data?.batches ?? []).filter((b) => b.target_table === target),
+    [sources.data, target],
+  );
   const problems = batches.filter((b) => b.status === 'rejected');
 
   const reset = () => {
@@ -311,12 +332,16 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
         ]}
       />
 
-      {tab !== 'corregir' && sources.error && !sources.data && <ErrorState label="el historial de lotes" message={sources.error} onRetry={sources.reload} />}
+      {tab !== 'corregir' && sources.error && !sources.data && (
+        <ErrorState label="el historial de lotes" message={sources.error} onRetry={sources.reload} />
+      )}
 
       {tab === 'problemas' && (sources.data || !sources.error) && (
         <>
           {problems.length === 0 ? (
-            <EmptyState title="No hay cargas con problemas">Todos los lotes de esta entidad se aplicaron o se revirtieron.</EmptyState>
+            <EmptyState title="No hay cargas con problemas">
+              Todos los lotes de esta entidad se aplicaron o se revirtieron.
+            </EmptyState>
           ) : (
             <div className="flex flex-col gap-3">
               {problems.map((b) => (
@@ -330,7 +355,8 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                       <StatusBadge status={b.status} />
                     </div>
                     <span className="text-sm text-muted">
-                      {shortId(b.batch_id)} · {b.source_system} · {b.imported_by?.full_name ?? 'Sistema'} · {fmtDateTime(b.imported_at)}
+                      {shortId(b.batch_id)} · {b.source_system} · {b.imported_by?.full_name ?? 'Sistema'} ·{' '}
+                      {fmtDateTime(b.imported_at)}
                     </span>
                   </div>
                   <Figure label="Leídas" value={b.rows_read} />
@@ -349,7 +375,9 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   </button>
                 </div>
               ))}
-              <div className="text-sm text-muted">El detalle fila por fila se muestra al validar el archivo; descargue el reporte en ese momento.</div>
+              <div className="text-sm text-muted">
+                El detalle fila por fila se muestra al validar el archivo; descargue el reporte en ese momento.
+              </div>
             </div>
           )}
         </>
@@ -361,7 +389,13 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
             <thead>
               <tr className="bg-canvas text-left">
                 {['Lote', 'Archivo', 'Usuario · fecha', 'Leídas / cargadas / rech.', 'Estado', ''].map((h, i) => (
-                  <th key={i} className={cn('px-4 py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted', i === 3 && 'text-right')}>
+                  <th
+                    key={i}
+                    className={cn(
+                      'px-4 py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted',
+                      i === 3 && 'text-right',
+                    )}
+                  >
                     {h}
                   </th>
                 ))}
@@ -400,7 +434,11 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
               ))}
             </tbody>
           </table>
-          {batches.length === 0 && <div className="px-6 py-10 text-center text-base text-muted">{sources.loading ? 'Cargando lotes…' : 'Aún no hay lotes para esta entidad.'}</div>}
+          {batches.length === 0 && (
+            <div className="px-6 py-10 text-center text-base text-muted">
+              {sources.loading ? 'Cargando lotes…' : 'Aún no hay lotes para esta entidad.'}
+            </div>
+          )}
         </Card>
       )}
 
@@ -412,16 +450,34 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
               const done = n < step || (n === 6 && apply.phase === 'ok');
               const current = n === step && !done;
               return (
-                <div key={label} className={cn('flex flex-col items-center gap-2 border-b-[3px] px-1.5 py-[18px] text-center', current ? 'border-navy' : 'border-transparent')}>
+                <div
+                  key={label}
+                  className={cn(
+                    'flex flex-col items-center gap-2 border-b-[3px] px-1.5 py-[18px] text-center',
+                    current ? 'border-navy' : 'border-transparent',
+                  )}
+                >
                   <span
                     className={cn(
                       'flex size-9 items-center justify-center rounded-full border-2 text-[15px] font-extrabold',
-                      done ? 'border-navy bg-navy text-white' : current ? 'border-navy bg-white text-navy' : 'border-line bg-white text-slate-500',
+                      done
+                        ? 'border-navy bg-navy text-white'
+                        : current
+                          ? 'border-navy bg-white text-navy'
+                          : 'border-line bg-white text-slate-500',
                     )}
                   >
                     {done ? '✓' : n}
                   </span>
-                  <span className={cn('text-sm leading-snug', current ? 'font-extrabold text-navy' : 'font-semibold text-muted', done && 'text-navy')}>{label}</span>
+                  <span
+                    className={cn(
+                      'text-sm leading-snug',
+                      current ? 'font-extrabold text-navy' : 'font-semibold text-muted',
+                      done && 'text-navy',
+                    )}
+                  >
+                    {label}
+                  </span>
                 </div>
               );
             })}
@@ -429,7 +485,8 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
 
           {correcting && (
             <div className="border-b border-line bg-canvas px-6 py-3 text-[15px]">
-              Corrigiendo el lote <strong>{shortId(correcting.batch_id)}</strong> ({correcting.file_name ?? 'Sin archivo'})
+              Corrigiendo el lote <strong>{shortId(correcting.batch_id)}</strong> (
+              {correcting.file_name ?? 'Sin archivo'})
             </div>
           )}
 
@@ -506,7 +563,10 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   />
                 </div>
                 {fileError && (
-                  <div role="alert" className="rounded-lg border border-danger-line bg-danger-bg px-4 py-3 text-[15px] font-semibold text-danger">
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-danger-line bg-danger-bg px-4 py-3 text-[15px] font-semibold text-danger"
+                  >
                     {fileError}
                   </div>
                 )}
@@ -516,10 +576,17 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-mono text-[15px] font-medium">{file.fileName}</div>
                       <div className="text-sm text-muted">
-                        {file.size > 1048576 ? `${(file.size / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`} · {fmtInt(file.rows.length)} filas
+                        {file.size > 1048576
+                          ? `${(file.size / 1048576).toFixed(1).replace('.', ',')} MB`
+                          : `${Math.max(1, Math.round(file.size / 1024))} KB`}{' '}
+                        · {fmtInt(file.rows.length)} filas
                       </div>
                     </div>
-                    <button type="button" onClick={() => setFile(null)} className="h-[38px] cursor-pointer rounded-lg border border-line bg-white px-3 text-sm font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setFile(null)}
+                      className="h-[38px] cursor-pointer rounded-lg border border-line bg-white px-3 text-sm font-semibold"
+                    >
                       Quitar
                     </button>
                   </div>
@@ -528,7 +595,12 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   <button type="button" onClick={() => setStep(1)} className={SECONDARY}>
                     Atrás
                   </button>
-                  <button type="button" disabled={!file} onClick={() => setStep(3)} className={cn(PRIMARY, 'disabled:opacity-40')}>
+                  <button
+                    type="button"
+                    disabled={!file}
+                    onClick={() => setStep(3)}
+                    className={cn(PRIMARY, 'disabled:opacity-40')}
+                  >
                     Siguiente
                   </button>
                 </div>
@@ -538,7 +610,10 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
             {step === 3 && file && (
               <div className="flex max-w-[860px] flex-col gap-[18px]">
                 <h4 className="m-0 text-[22px] font-extrabold">3. Mapear columnas</h4>
-                <p className="m-0 text-base leading-relaxed text-slate-700">Asigne cada columna de la plantilla a una columna del archivo. Las que no existan pueden dejarse vacías; el servidor indicará si son obligatorias.</p>
+                <p className="m-0 text-base leading-relaxed text-slate-700">
+                  Asigne cada columna de la plantilla a una columna del archivo. Las que no existan pueden dejarse
+                  vacías; el servidor indicará si son obligatorias.
+                </p>
                 <div className="overflow-hidden rounded-xl border border-line">
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] gap-3 bg-canvas px-[18px] py-3 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">
                     <span>Columna de la plantilla</span>
@@ -548,12 +623,18 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   {template.map((col) => {
                     const value = mapping[col] ?? '';
                     return (
-                      <div key={col} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] items-center gap-3 border-t border-line px-[18px] py-2.5">
+                      <div
+                        key={col}
+                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px] sm:grid-cols-[1fr_1fr_150px] items-center gap-3 border-t border-line px-[18px] py-2.5"
+                      >
                         <span className="font-mono text-[15px]">{col}</span>
                         <select
                           value={value}
                           onChange={(e) => setMapping((m) => ({ ...m, [col]: e.target.value }))}
-                          className={cn('h-[42px] rounded-lg border-[1.5px] bg-white px-2.5 font-mono text-[15px]', value ? 'border-slate-300' : 'border-warn')}
+                          className={cn(
+                            'h-[42px] rounded-lg border-[1.5px] bg-white px-2.5 font-mono text-[15px]',
+                            value ? 'border-slate-300' : 'border-warn',
+                          )}
                         >
                           <option value="">Seleccione…</option>
                           <option value={EMPTY}>— Dejar vacía —</option>
@@ -563,7 +644,9 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                             </option>
                           ))}
                         </select>
-                        <span className={cn('text-sm font-bold', value ? 'text-navy' : 'text-warn')}>{!value ? 'Sin asignar' : value === col ? 'Coincide' : value === EMPTY ? 'Vacía' : 'Asignada'}</span>
+                        <span className={cn('text-sm font-bold', value ? 'text-navy' : 'text-warn')}>
+                          {!value ? 'Sin asignar' : value === col ? 'Coincide' : value === EMPTY ? 'Vacía' : 'Asignada'}
+                        </span>
                       </div>
                     );
                   })}
@@ -579,7 +662,12 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   >
                     Usar sugerencias
                   </button>
-                  <button type="button" disabled={!mapped} onClick={() => setStep(4)} className={cn(PRIMARY, 'disabled:opacity-40')}>
+                  <button
+                    type="button"
+                    disabled={!mapped}
+                    onClick={() => setStep(4)}
+                    className={cn(PRIMARY, 'disabled:opacity-40')}
+                  >
                     Siguiente
                   </button>
                 </div>
@@ -589,14 +677,21 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
             {step === 4 && (
               <div className="flex flex-col gap-4">
                 <h4 className="m-0 text-[22px] font-extrabold">4. Vista previa · primeras 20 filas</h4>
-                <div className="text-[15px] text-muted">El servidor valida cada fila otra vez al validar: aquí se ve cómo quedarán los datos.</div>
+                <div className="text-[15px] text-muted">
+                  El servidor valida cada fila otra vez al validar: aquí se ve cómo quedarán los datos.
+                </div>
                 <div className="max-h-[520px] overflow-auto rounded-xl border border-line">
                   <table className="w-full border-collapse font-mono text-sm">
                     <thead>
                       <tr>
-                        <th className="sticky top-0 border-b border-line bg-slate-100 px-3 py-2.5 text-right text-xs text-muted">Fila</th>
+                        <th className="sticky top-0 border-b border-line bg-slate-100 px-3 py-2.5 text-right text-xs text-muted">
+                          Fila
+                        </th>
                         {template.map((c) => (
-                          <th key={c} className="sticky top-0 whitespace-nowrap border-b border-line bg-slate-100 px-3 py-2.5 text-left text-xs font-bold text-muted">
+                          <th
+                            key={c}
+                            className="sticky top-0 whitespace-nowrap border-b border-line bg-slate-100 px-3 py-2.5 text-left text-xs font-bold text-muted"
+                          >
                             {c}
                           </th>
                         ))}
@@ -631,7 +726,8 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
               <div className="flex max-w-[900px] flex-col gap-[18px]">
                 <h4 className="m-0 text-[22px] font-extrabold">5. Validación</h4>
                 <div className="rounded-xl border border-line bg-canvas px-[18px] py-3.5 text-base leading-relaxed">
-                  La carga es todo o nada: si una sola fila es inválida no se aplica ninguna. Los datos existentes nunca se sobrescriben.
+                  La carga es todo o nada: si una sola fila es inválida no se aplica ninguna. Los datos existentes nunca
+                  se sobrescriben.
                 </div>
 
                 {validation.phase === 'idle' && (
@@ -668,7 +764,10 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
 
                 {validation.phase === 'fail' && validation.failure && (
                   <div className="flex flex-col gap-4">
-                    <div role="alert" className="flex items-center gap-3 rounded-xl border border-danger-line bg-danger-bg px-[18px] py-4 text-[17px] font-extrabold text-danger">
+                    <div
+                      role="alert"
+                      className="flex items-center gap-3 rounded-xl border border-danger-line bg-danger-bg px-[18px] py-4 text-[17px] font-extrabold text-danger"
+                    >
                       <Icon name="close" size={22} strokeWidth={2.2} />
                       {validation.failure.message ? 'No se pudo validar el archivo' : 'Rechazado: revise el reporte'}
                     </div>
@@ -677,19 +776,31 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                     ) : (
                       <>
                         <div className="text-base text-slate-700">
-                          {fmtInt(validation.failure.invalid)} filas inválidas de {fmtInt(file.rows.length)}. No se aplicó ninguna fila
-                          {validation.failure.batchId ? `. Se registró el lote ${shortId(validation.failure.batchId)}` : ''}.
+                          {fmtInt(validation.failure.invalid)} filas inválidas de {fmtInt(file.rows.length)}. No se
+                          aplicó ninguna fila
+                          {validation.failure.batchId
+                            ? `. Se registró el lote ${shortId(validation.failure.batchId)}`
+                            : ''}
+                          .
                         </div>
                         <div className="max-h-[360px] overflow-y-auto rounded-xl border border-line">
                           {validation.failure.errors.map((e, i) => (
-                            <div key={i} className="grid grid-cols-[80px_minmax(0,1fr)_minmax(0,2fr)] gap-3 border-t border-mist px-4 py-2.5 text-[15px] first:border-t-0">
+                            <div
+                              key={i}
+                              className="grid grid-cols-[80px_minmax(0,1fr)_minmax(0,2fr)] gap-3 border-t border-mist px-4 py-2.5 text-[15px] first:border-t-0"
+                            >
                               <strong>Fila {e.row_number}</strong>
                               <span className="font-mono">{e.column_name ?? '(fila completa)'}</span>
                               <span>{e.message}</span>
                             </div>
                           ))}
                         </div>
-                        {validation.failure.truncated && <div className="text-sm text-muted">Se muestran los primeros errores de cada trozo; corrija y vuelva a validar para ver el resto.</div>}
+                        {validation.failure.truncated && (
+                          <div className="text-sm text-muted">
+                            Se muestran los primeros errores de cada trozo; corrija y vuelva a validar para ver el
+                            resto.
+                          </div>
+                        )}
                       </>
                     )}
                     <div className="flex flex-wrap gap-3">
@@ -706,7 +817,12 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                         type="button"
                         onClick={() => {
                           setFile(null);
-                          setValidation({ phase: 'idle', progress: { done: 0, total: 0 }, failure: null, batchId: null });
+                          setValidation({
+                            phase: 'idle',
+                            progress: { done: 0, total: 0 },
+                            failure: null,
+                            batchId: null,
+                          });
                           setStep(2);
                         }}
                         className={PRIMARY}
@@ -726,7 +842,8 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                 {apply.phase === 'idle' && (
                   <div className="flex flex-col gap-4">
                     <div className="text-base leading-relaxed">
-                      Se creará un lote nuevo en <span className="font-mono">{target}</span> con <strong>{fmtInt(file.rows.length)} filas</strong> desde{' '}
+                      Se creará un lote nuevo en <span className="font-mono">{target}</span> con{' '}
+                      <strong>{fmtInt(file.rows.length)} filas</strong> desde{' '}
                       <span className="font-mono">{file.fileName}</span>.
                     </div>
                     <div className="flex gap-3">
@@ -740,11 +857,16 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                   </div>
                 )}
 
-                {apply.phase === 'running' && <Progress label="Aplicando el lote y recalculando indicadores" pct={60} />}
+                {apply.phase === 'running' && (
+                  <Progress label="Aplicando el lote y recalculando indicadores" pct={60} />
+                )}
 
                 {apply.phase === 'fail' && (
                   <div className="flex flex-col gap-4">
-                    <div role="alert" className="rounded-xl border border-danger-line bg-danger-bg px-[18px] py-4 text-base font-semibold text-danger">
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-danger-line bg-danger-bg px-[18px] py-4 text-base font-semibold text-danger"
+                    >
                       {apply.error}
                     </div>
                     <div className="flex gap-3">
@@ -762,12 +884,20 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
                         <Icon name="check" size={22} strokeWidth={2.6} />
                       </span>
                       <div>
-                        <div className="text-[22px] font-extrabold">Aplicado: {fmtInt(apply.result.rows_loaded)} filas cargadas</div>
-                        <div className="mt-0.5 text-[15px] text-muted">Lote {shortId(apply.result.batch_id)} · KPIs y alertas recalculados</div>
+                        <div className="text-[22px] font-extrabold">
+                          Aplicado: {fmtInt(apply.result.rows_loaded)} filas cargadas
+                        </div>
+                        <div className="mt-0.5 text-[15px] text-muted">
+                          Lote {shortId(apply.result.batch_id)} · KPIs y alertas recalculados
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={() => setTab('historial')} className="h-12 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-5 text-base font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setTab('historial')}
+                        className="h-12 cursor-pointer rounded-lg border-[1.5px] border-navy bg-white px-5 text-base font-bold"
+                      >
                         Ver historial de lotes
                       </button>
                       <button type="button" onClick={reset} className={SECONDARY}>
@@ -784,17 +914,31 @@ function ImportWizard({ target, note }: { target: ImportTarget; note?: string })
 
       {confirmRevert && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/55 p-4 sm:p-6">
-          <div role="dialog" aria-modal="true" className="flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-float sm:p-7">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-float sm:p-7"
+          >
             <h3 className="m-0 text-2xl font-extrabold">¿Revertir el lote {shortId(confirmRevert.batch_id)}?</h3>
             <p className="m-0 text-base leading-relaxed text-slate-700">
-              Se retirarán las {fmtInt(confirmRevert.rows_loaded)} filas cargadas desde <span className="font-mono">{confirmRevert.file_name ?? 'el archivo'}</span> y se recalcularán KPIs y alertas.
+              Se retirarán las {fmtInt(confirmRevert.rows_loaded)} filas cargadas desde{' '}
+              <span className="font-mono">{confirmRevert.file_name ?? 'el archivo'}</span> y se recalcularán KPIs y
+              alertas.
               {target === 'drug_stock' ? ' Se restaurará la foto de inventario anterior.' : ''}
             </p>
             <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setConfirmRevert(null)} className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-5 text-[15px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setConfirmRevert(null)}
+                className="h-[46px] cursor-pointer rounded-lg border border-line bg-white px-5 text-[15px] font-semibold"
+              >
                 Cancelar
               </button>
-              <button type="button" onClick={() => void revert(confirmRevert)} className="h-[46px] cursor-pointer rounded-lg border-0 bg-leaf px-5 text-[15px] font-bold text-white">
+              <button
+                type="button"
+                onClick={() => void revert(confirmRevert)}
+                className="h-[46px] cursor-pointer rounded-lg border-0 bg-leaf px-5 text-[15px] font-bold text-white"
+              >
                 Revertir lote
               </button>
             </div>

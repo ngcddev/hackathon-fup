@@ -55,8 +55,6 @@ export function stripPatientKey<T extends Record<string, unknown>>(
   if (!columns.some(isBlocked)) return { columns, rows };
   return {
     columns: columns.filter((c) => !isBlocked(c)),
-    rows: rows.map((row) =>
-      Object.fromEntries(Object.entries(row).filter(([key]) => !isBlocked(key))),
-    ),
+    rows: rows.map((row) => Object.fromEntries(Object.entries(row).filter(([key]) => !isBlocked(key)))),
   };
 }

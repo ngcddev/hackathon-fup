@@ -130,9 +130,7 @@ function outOfScopeMessage(reason: string | null): string {
   return `${base} ${SCOPE_HINT}`;
 }
 
-type LlmSqlResult =
-  | { ok: true; outcome: Outcome }
-  | { ok: false; note: string; validatorRejected: boolean };
+type LlmSqlResult = { ok: true; outcome: Outcome } | { ok: false; note: string; validatorRejected: boolean };
 
 // SQL del LLM: validador → ejecución con agent_ro (con el mismo reintento por caché fría que el plan B).
 // Si falla, responde el plan B.
@@ -219,7 +217,9 @@ async function execute(question: string, trace: Trace): Promise<Outcome> {
     }
     // SQL del LLM bloqueado por el validador (p. ej. pide otro esquema) y sin plan B: se trata como fuera de alcance.
     if (validatorRejected) throw new ApiError('OUT_OF_SCOPE', outOfScopeMessage(null));
-    const suggestions = suggestedQuestions().map((q) => `"${q}"`).join(' · ');
+    const suggestions = suggestedQuestions()
+      .map((q) => `"${q}"`)
+      .join(' · ');
     throw new ApiError(
       'AGENT_UNAVAILABLE',
       `No pude interpretar la pregunta y el asistente inteligente no está disponible. Prueba con una de estas: ${suggestions}`,
@@ -310,7 +310,9 @@ export async function handleQuery(question: string, user: AuthUser): Promise<Que
   } catch (error) {
     const rejected =
       error instanceof ApiError &&
-      (error.code === 'AGENT_UNAVAILABLE' || error.code === 'OUT_OF_SCOPE' || error.code === 'SENSITIVE_DATA_REQUESTED');
+      (error.code === 'AGENT_UNAVAILABLE' ||
+        error.code === 'OUT_OF_SCOPE' ||
+        error.code === 'SENSITIVE_DATA_REQUESTED');
     await logQuery({
       ...base,
       origin: trace.origin,

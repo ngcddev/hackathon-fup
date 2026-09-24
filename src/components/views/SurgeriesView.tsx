@@ -18,7 +18,11 @@ function MonthlyChart({ months }: { months: KpisResponse['surgeries']['by_month'
   const slot = W / months.length;
   const max = niceMax(Math.max(...months.map((m) => m.scheduled)));
   const ticks = [0, 1, 2, 3, 4].map((i) => Math.round(max - (max / 4) * i));
-  const line = months.map((m, i) => `${i ? 'L' : 'M'}${(i * slot + slot / 2).toFixed(1)},${(H - (m.compliance_pct / 100) * H).toFixed(1)}`).join(' ');
+  const line = months
+    .map(
+      (m, i) => `${i ? 'L' : 'M'}${(i * slot + slot / 2).toFixed(1)},${(H - (m.compliance_pct / 100) * H).toFixed(1)}`,
+    )
+    .join(' ');
   const metaY = H - (SURGERY_GOAL_PCT / 100) * H;
   const bar = Math.min(30, slot / 3);
 
@@ -30,7 +34,15 @@ function MonthlyChart({ months }: { months: KpisResponse['surgeries']['by_month'
         ))}
       </div>
       <div className="relative min-w-0 flex-1">
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} className="block overflow-visible" role="img" aria-label="Cirugías programadas y realizadas por mes">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          width="100%"
+          height={H}
+          className="block overflow-visible"
+          role="img"
+          aria-label="Cirugías programadas y realizadas por mes"
+        >
           {[0, 70, 140, 210].map((y) => (
             <line key={y} x1="0" x2={W} y1={y} y2={y} stroke="#EEF2F6" vectorEffect="non-scaling-stroke" />
           ))}
@@ -41,13 +53,38 @@ function MonthlyChart({ months }: { months: KpisResponse['surgeries']['by_month'
             const h2 = (m.performed / max) * H;
             return (
               <g key={m.month}>
-                <rect x={x0 - bar - 2} y={H - h1} width={bar} height={h1} fill="#fff" stroke="#1B2754" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                <rect
+                  x={x0 - bar - 2}
+                  y={H - h1}
+                  width={bar}
+                  height={h1}
+                  fill="#fff"
+                  stroke="#1B2754"
+                  strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke"
+                />
                 <rect x={x0 + 2} y={H - h2} width={bar} height={h2} fill="#1B2754" />
               </g>
             );
           })}
-          <line x1="0" x2={W} y1={metaY} y2={metaY} stroke="#1B2754" strokeWidth="2" strokeDasharray="8 6" vectorEffect="non-scaling-stroke" />
-          <path d={line} fill="none" stroke="#475569" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          <line
+            x1="0"
+            x2={W}
+            y1={metaY}
+            y2={metaY}
+            stroke="#1B2754"
+            strokeWidth="2"
+            strokeDasharray="8 6"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={line}
+            fill="none"
+            stroke="#475569"
+            strokeWidth="3"
+            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+          />
         </svg>
         <div className="mt-2.5 grid text-center" style={{ gridTemplateColumns: `repeat(${months.length}, 1fr)` }}>
           {months.map((m) => (
@@ -67,7 +104,7 @@ function MonthlyChart({ months }: { months: KpisResponse['surgeries']['by_month'
   );
 }
 
-function Estado({ data }: { data: KpisResponse }) {
+function SurgeriesStatus({ data }: { data: KpisResponse }) {
   const s = data.surgeries;
   const months = s.by_month;
   return (
@@ -79,8 +116,20 @@ function Estado({ data }: { data: KpisResponse }) {
           origin="Derivado"
           sub={`sobre ${fmtInt(s.universe_total)} programaciones con ingreso en el extracto · meta ${SURGERY_GOAL_PCT} %`}
         />
-        <Stat label="Programadas" value={fmtInt(s.universe_total)} sub={months.length ? `${fmtMonthShort(months[0].month)} – ${fmtMonthShort(months[months.length - 1].month)}` : undefined} />
-        <Stat label="Realizadas" value={fmtInt(s.performed_total)} sub={`${fmtInt(s.universe_total - s.performed_total)} no realizadas`} />
+        <Stat
+          label="Programadas"
+          value={fmtInt(s.universe_total)}
+          sub={
+            months.length
+              ? `${fmtMonthShort(months[0].month)} – ${fmtMonthShort(months[months.length - 1].month)}`
+              : undefined
+          }
+        />
+        <Stat
+          label="Realizadas"
+          value={fmtInt(s.performed_total)}
+          sub={`${fmtInt(s.universe_total - s.performed_total)} no realizadas`}
+        />
       </div>
 
       {months.length > 0 && (
@@ -113,10 +162,10 @@ function Estado({ data }: { data: KpisResponse }) {
   );
 }
 
-export function CirugiasView() {
+export function SurgeriesView() {
   return (
     <EntityView target="surgery_schedules">
-      <KpiGate label="cirugías">{(data) => <Estado data={data} />}</KpiGate>
+      <KpiGate label="cirugías">{(data) => <SurgeriesStatus data={data} />}</KpiGate>
     </EntityView>
   );
 }

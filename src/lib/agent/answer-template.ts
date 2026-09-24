@@ -69,11 +69,7 @@ function dropFalseSuperlatives(template: string, columns: Set<string>, rows: Rec
   return kept.join(' ').replace(/;\s*$/, '.');
 }
 
-export function fillAnswerTemplate(
-  template: string,
-  columns: string[],
-  rows: Record<string, unknown>[],
-): string {
+export function fillAnswerTemplate(template: string, columns: string[], rows: Record<string, unknown>[]): string {
   if (rows.length === 0 || template.trim() === '') return genericAnswer(rows.length);
   template = dropFalseSuperlatives(template, new Set(columns), rows);
   if (template.trim() === '') return genericAnswer(rows.length);

@@ -21,8 +21,7 @@ export type LlmDecision =
   | { type: 'help' };
 
 export type LlmOutcome =
-  | { status: 'ok'; decision: LlmDecision; provider: LlmProvider }
-  | { status: 'unavailable'; reason: string };
+  { status: 'ok'; decision: LlmDecision; provider: LlmProvider } | { status: 'unavailable'; reason: string };
 
 export const LLM_BUDGET_MS = 8_000;
 const GEMINI_TIMEOUT_MS = 3_500;
@@ -41,7 +40,10 @@ export function isLlmEnabled(): boolean {
 // ------------------------------------------------------------------ Interpretación de la salida
 
 function extractJson(text: string): unknown {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const trimmed = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
   try {
     return JSON.parse(trimmed);
   } catch {
@@ -67,7 +69,10 @@ export function parseDecision(text: string): LlmDecision | null {
     }
     case 'out_of_scope': {
       const reason = typeof obj.reason === 'string' ? obj.reason : '';
-      const clean = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const clean = reason
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       return { type: 'out_of_scope', reason: clean.slice(0, MAX_REASON_CHARS) };
     }
     case 'sensitive':
@@ -91,8 +96,7 @@ class ProviderError extends Error {
 }
 
 // Saturación o caída del proveedor (429, 5xx, timeout): vale la pena pausarlo un rato.
-const isOutage = (error: unknown) =>
-  error instanceof ProviderError && (error.retryable || error.message === 'timeout');
+const isOutage = (error: unknown) => error instanceof ProviderError && (error.retryable || error.message === 'timeout');
 
 // Instante hasta el que Gemini queda en pausa tras una caída (0 = disponible).
 let geminiPausedUntil = 0;
@@ -190,7 +194,9 @@ async function callGroq(question: string, timeoutMs: number): Promise<string> {
   // Cuota restante del plan gratuito (8.000 TPM): útil para vigilarla antes de la demo.
   const left = headers.get('x-ratelimit-remaining-tokens');
   if (left !== null) {
-    console.info(`[agent] groq: tokens restantes ${left}, solicitudes restantes ${headers.get('x-ratelimit-remaining-requests') ?? '?'}`);
+    console.info(
+      `[agent] groq: tokens restantes ${left}, solicitudes restantes ${headers.get('x-ratelimit-remaining-requests') ?? '?'}`,
+    );
   }
   if (status !== 200) throw httpError(status);
   const text = (json as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0]?.message?.content;

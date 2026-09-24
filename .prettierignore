@@ -1,0 +1,15 @@
+.next
+node_modules
+data
+public
+docs
+supabase
+*.md
+*.py
+*.sql
+*.generated.ts
+package-lock.json
+skills-lock.json
+tsconfig.tsbuildinfo
+next-env.d.ts
+mocks/*.json

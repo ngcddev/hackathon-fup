@@ -7,7 +7,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { fmtInt } from '@/components/ui/format';
 import { ClientApiError, apiPost, errorMessage } from '@/lib/api/client';
 import type { AgentView, QueryCell, QueryRequest, QueryResponse } from '@/lib/types/api';
-import { SUGGESTED_QUESTIONS } from './ResumenView';
+import { SUGGESTED_QUESTIONS } from './SummaryView';
 
 interface Message {
   id: number;
@@ -34,14 +34,14 @@ interface Module {
 }
 
 const MODULE_OF_VIEW: Record<AgentView, Module> = {
-  v_bed_occupancy: { href: '/camas', label: 'Camas', icon: 'camas' },
-  v_admissions: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
-  v_emergency_wait_times: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
-  v_diagnosis_monthly: { href: '/pacientes', label: 'Pacientes e ingresos', icon: 'pacientes' },
-  v_drug_inventory: { href: '/medicamentos', label: 'Medicamentos', icon: 'medicamentos' },
-  v_drug_consumption_daily: { href: '/medicamentos', label: 'Medicamentos', icon: 'medicamentos' },
-  v_surgeries: { href: '/cirugias', label: 'Cirugías', icon: 'cirugias' },
-  v_service_demand_daily: { href: '/', label: 'Resumen', icon: 'resumen' },
+  v_bed_occupancy: { href: '/beds', label: 'Camas', icon: 'beds' },
+  v_admissions: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
+  v_emergency_wait_times: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
+  v_diagnosis_monthly: { href: '/patients', label: 'Pacientes e ingresos', icon: 'patients' },
+  v_drug_inventory: { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
+  v_drug_consumption_daily: { href: '/drugs', label: 'Medicamentos', icon: 'drugs' },
+  v_surgeries: { href: '/surgeries', label: 'Cirugías', icon: 'surgeries' },
+  v_service_demand_daily: { href: '/', label: 'Resumen', icon: 'summary' },
 };
 
 // Un enlace por módulo aunque varias vistas lleven al mismo.
@@ -62,15 +62,17 @@ function formatCell(cell: QueryCell): string {
 }
 
 const ORIGIN_LABEL = (r: QueryResponse) =>
-  r.origin === 'predefined' ? 'Respuesta predefinida' : `IA${r.llm_provider ? ` (${r.llm_provider === 'gemini' ? 'Gemini' : 'Groq'})` : ''}`;
+  r.origin === 'predefined'
+    ? 'Respuesta predefinida'
+    : `IA${r.llm_provider ? ` (${r.llm_provider === 'gemini' ? 'Gemini' : 'Groq'})` : ''}`;
 
-interface AgenteViewProps {
+interface AgentChatViewProps {
   initialQuestion: string;
   autoSend: boolean;
   requestId: string;
 }
 
-export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewProps) {
+export function AgentChatView({ initialQuestion, autoSend, requestId }: AgentChatViewProps) {
   const online = useOnline();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -91,7 +93,11 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
       patch({ state: 'ok', result });
     } catch (e) {
       const code = e instanceof ClientApiError ? e.code : 'INTERNAL_ERROR';
-      patch({ state: 'error', errorTitle: ERROR_TITLE[code] ?? 'No pudimos responder esa pregunta', errorText: errorMessage(e) });
+      patch({
+        state: 'error',
+        errorTitle: ERROR_TITLE[code] ?? 'No pudimos responder esa pregunta',
+        errorText: errorMessage(e),
+      });
     }
   };
 
@@ -137,7 +143,9 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
           + Nueva conversación
         </button>
         <div className="px-1 pt-2 text-[13px] font-bold uppercase tracking-[0.05em] text-muted">Historial</div>
-        {messages.length === 0 && <div className="p-1 text-sm text-muted">Sus preguntas de esta sesión aparecerán aquí.</div>}
+        {messages.length === 0 && (
+          <div className="p-1 text-sm text-muted">Sus preguntas de esta sesión aparecerán aquí.</div>
+        )}
         {[...messages].reverse().map((m) => (
           <button
             key={m.id}
@@ -154,16 +162,19 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
         <div ref={scroller} className="flex flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6">
           {messages.length === 0 && (
             <div className="m-auto flex max-w-[560px] flex-col items-center gap-2.5 py-10 text-center">
-              <Icon name="agente" size={40} strokeWidth={1.5} className="text-navy" />
+              <Icon name="agent" size={40} strokeWidth={1.5} className="text-navy" />
               <div className="text-[26px] font-extrabold">¿Qué quiere saber hoy?</div>
               <div className="text-base leading-normal text-muted">
-                Pregunte en lenguaje natural. El agente consulta los datos del hospital y le muestra la respuesta con su tabla y un acceso al módulo relacionado.
+                Pregunte en lenguaje natural. El agente consulta los datos del hospital y le muestra la respuesta con su
+                tabla y un acceso al módulo relacionado.
               </div>
             </div>
           )}
           {messages.map((m) => (
             <div key={m.id} id={`msg-${m.id}`} className="flex flex-col gap-3.5">
-              <div className="max-w-[80%] self-end rounded-2xl rounded-br-[4px] bg-navy px-[18px] py-3 text-[17px] leading-normal text-white">{m.question}</div>
+              <div className="max-w-[80%] self-end rounded-2xl rounded-br-[4px] bg-navy px-[18px] py-3 text-[17px] leading-normal text-white">
+                {m.question}
+              </div>
 
               {m.state === 'loading' && (
                 <div aria-busy="true" className="flex max-w-[760px] flex-col gap-2.5">
@@ -175,13 +186,18 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
               )}
 
               {m.state === 'error' && (
-                <div role="alert" className="flex max-w-[760px] flex-col gap-1.5 rounded-xl border border-line bg-canvas px-[18px] py-4">
+                <div
+                  role="alert"
+                  className="flex max-w-[760px] flex-col gap-1.5 rounded-xl border border-line bg-canvas px-[18px] py-4"
+                >
                   <div className="text-[17px] font-bold">{m.errorTitle}</div>
                   <div className="text-[15px] leading-normal text-slate-700">{m.errorText}</div>
                 </div>
               )}
 
-              {m.state === 'ok' && m.result && <Answer result={m.result} onAsk={online ? (q) => void ask(q) : undefined} />}
+              {m.state === 'ok' && m.result && (
+                <Answer result={m.result} onAsk={online ? (q) => void ask(q) : undefined} />
+              )}
             </div>
           ))}
         </div>
@@ -201,7 +217,10 @@ export function AgenteView({ initialQuestion, autoSend, requestId }: AgenteViewP
             ))}
           </div>
           {!online && (
-            <div role="status" className="rounded-lg border border-line bg-slate-100 px-3.5 py-2.5 text-[15px] font-semibold">
+            <div
+              role="status"
+              className="rounded-lg border border-line bg-slate-100 px-3.5 py-2.5 text-[15px] font-semibold"
+            >
               El agente requiere conexión. Vuelva a intentarlo cuando se restablezca la red.
             </div>
           )}
@@ -240,7 +259,9 @@ function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: s
     <div className="flex max-w-full flex-col gap-3.5">
       <div className="flex flex-wrap items-center gap-2.5">
         {result.includes_simulated_data && (
-          <span className="rounded-full border border-dashed border-slate-500 px-2.5 py-0.5 text-[13px] font-bold text-muted">Incluye datos simulados</span>
+          <span className="rounded-full border border-dashed border-slate-500 px-2.5 py-0.5 text-[13px] font-bold text-muted">
+            Incluye datos simulados
+          </span>
         )}
       </div>
       <p className="m-0 max-w-[860px] text-lg leading-relaxed">{result.answer}</p>
@@ -338,7 +359,6 @@ function Answer({ result, onAsk }: { result: QueryResponse; onAsk?: (question: s
           </div>
         </div>
       )}
-
 
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-muted">
         <span>

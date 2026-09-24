@@ -6,8 +6,7 @@
 
 import { AGENT_SCHEMA_VIEWS, AGENT_SERVICES } from './schema.generated';
 
-const fold = (s: string): string =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const fold = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 // columna → (valor plegado → valor exacto).
 const KNOWN_VALUES = new Map<string, Map<string, string>>();

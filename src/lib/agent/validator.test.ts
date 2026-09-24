@@ -39,7 +39,7 @@ describe('validateSql: rechazos (SEG-01, SEG-03)', () => {
     current_timestamp: `SELECT service FROM agent.v_admissions WHERE admitted_at >= current_timestamp`,
     dblink: `SELECT * FROM dblink('host=x', 'select 1') AS t(a int)`,
     lo_import: `SELECT lo_import('/etc/passwd') FROM agent.v_admissions`,
-    'UPDATE': `UPDATE agent.v_admissions SET service = 'x'`,
+    UPDATE: `UPDATE agent.v_admissions SET service = 'x'`,
     'DROP TABLE': `DROP TABLE core.patients`,
     'tabla sin esquema': `SELECT * FROM v_admissions`,
     'otra vista de agent no listada': `SELECT * FROM agent.v_secret`,
@@ -50,7 +50,7 @@ describe('validateSql: rechazos (SEG-01, SEG-03)', () => {
     'función en FROM': `SELECT * FROM generate_series(1, 10)`,
     'cast a regclass': `SELECT 'core.patients'::regclass FROM agent.v_admissions`,
     'patient_key con alias': `SELECT patient_key AS id FROM agent.v_admissions`,
-    'parámetros': `SELECT service FROM agent.v_admissions WHERE service = $1`,
+    parámetros: `SELECT service FROM agent.v_admissions WHERE service = $1`,
   };
   for (const [name, sql] of Object.entries(cases)) {
     it(name, () => expectRejected(sql));
@@ -152,7 +152,12 @@ describe('las 4 consultas de demo_reference.sql (y las del plan B) pasan sin cam
   const blocks = file
     .split(/^-- Q\d.*$/m)
     .slice(1)
-    .map((b) => b.replace(/^--.*$/gm, '').trim().replace(/;\s*$/, ''));
+    .map((b) =>
+      b
+        .replace(/^--.*$/gm, '')
+        .trim()
+        .replace(/;\s*$/, ''),
+    );
 
   it('el archivo trae 4 consultas', () => expect(blocks).toHaveLength(4));
 
