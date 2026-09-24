@@ -107,18 +107,20 @@ describe('fillAnswerTemplate', () => {
 describe('prompt', () => {
   const system = buildSystemPrompt();
 
-  it('incluye los 9 servicios, las reglas de fecha y las 4 preguntas de la demo', () => {
+  it('incluye los 9 servicios, las reglas de fecha y las reglas que corrigen la línea base', () => {
     expect(AGENT_SERVICES).toHaveLength(9);
     for (const service of AGENT_SERVICES) expect(system).toContain(service);
     expect(system).toContain('agent.reference_date()');
     expect(system).toContain('UCI');
-    for (const q of ['camas de UCI', 'menos de 5 días', 'tiempo de espera promedio', 'más pacientes ingresados']) {
-      expect(system).toContain(q);
-    }
+    // Urgencias por ruta (S-04), camas en un solo día y rechazo de pronósticos y servicios inexistentes.
+    expect(system).toContain("admission_route = 'Urgencias'");
+    expect(system).toContain('nunca sumes capacity de varios días');
+    expect(system).toContain('out_of_scope');
+    expect(system).toContain('pronósticos');
   });
 
-  it('cabe en un presupuesto razonable de tokens (~3.500)', () => {
-    expect(system.length / 3.2).toBeLessThan(3_500);
+  it('es al menos 30 % más corto que el prompt original (11.144 caracteres): Groq limita los tokens por día y por minuto', () => {
+    expect(system.length).toBeLessThan(7_800);
   });
 
   it('explica cómo filtrar texto libre en mayúsculas y sin tildes', () => {
