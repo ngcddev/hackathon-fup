@@ -63,6 +63,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Todo menos archivos estáticos e imágenes.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
+  // Todo menos archivos estáticos e imágenes. También quedan fuera los archivos de la PWA
+  // (manifiesto, service worker y página offline): el navegador los pide sin sesión y no tienen datos.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 };
